@@ -7,6 +7,7 @@
   <nav class="nav">
     <a href="{{ url_for('calendar.index', month=prev_month) }}">上个月</a>
     <a href="{{ url_for('calendar.index', month=next_month) }}">下个月</a>
+    <a href="{{ url_for('cycle.list_templates') }}">循环模板</a>
   </nav>
 </div>
 <p class="sub">点某一天，看当天的计划与实际完成。</p>

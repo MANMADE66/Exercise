@@ -24,10 +24,12 @@ def create_app(config: dict | None = None) -> Flask:
     db.init_app(app)
 
     from app import calendar as calendar_views
+    from app import cycle as cycle_views
     from app import days as day_views
     from app import metrics as metric_views
 
     app.register_blueprint(calendar_views.bp)
+    app.register_blueprint(cycle_views.bp)
     app.register_blueprint(day_views.bp)
     app.register_blueprint(metric_views.bp)
 

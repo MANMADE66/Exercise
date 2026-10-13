@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}循环模板 · 训练记录{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <h1>循环模板</h1>
+  <nav class="nav"><a href="{{ url_for('calendar.index') }}">回到月历</a></nav>
+</div>
+<p class="sub">把一套循环存成模板，之后选个起始日期一键铺到日历上。已经排过的日期会跳过，不会覆盖你已经写好的内容。</p>
+
+{% if message %}<div class="flash">{{ message }}</div>{% endif %}
+
+{% if templates %}
+<div class="card">
+  <h3>已有的模板</h3>
+  <ul class="tpl-list">
+    {% for t in templates %}
+    <li>
+      <span>{{ t.name }} · {{ t.length_days }} 天</span>
+      <form class="inline" method="post" action="{{ url_for('cycle.apply_template_route', template_id=t.id) }}">
+        <input type="date" name="start" value="{{ today.isoformat() }}" aria-label="起始日期">
+        <button type="submit">铺到日历</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>新建模板</h3>
+  <form method="post" action="{{ url_for('cycle.create_template') }}">
+    <div class="inline">
+      <input class="w-name" type="text" name="name" placeholder="模板名，例如 八天循环" aria-label="模板名">
+      <input class="w-num" type="text" name="length_days" value="8" aria-label="循环天数">
+      <span class="muted">天</span>
+      <button class="primary" type="submit">保存模板</button>
+    </div>
+    <p class="muted" style="margin-top:10px">天数填几就只用前几天的内容。每天填部位名、勾不勾休息、动作一行一个；重量不写进模板，铺出来之后按天填。</p>
+
+    {% for i in range(max_days) %}
+    <div class="tpl-day">
+      <div class="inline">
+        <span class="muted w-day">第 {{ i + 1 }} 天</span>
+        <input class="w-name" type="text" name="title-{{ i }}" placeholder="部位，例如 胸 + 二头" aria-label="第 {{ i + 1 }} 天部位">
+        <label class="muted"><input type="checkbox" name="kind-{{ i }}" value="rest"> 休息</label>
+      </div>
+      <textarea name="items-{{ i }}" rows="2" placeholder="动作，一行一个" aria-label="第 {{ i + 1 }} 天动作"></textarea>
+    </div>
+    {% endfor %}
+  </form>
+</div>
+{% endblock %}
