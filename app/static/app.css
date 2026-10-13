@@ -73,6 +73,13 @@ tr:last-child .day-cell { border-bottom: 0; }
   display: inline-block; margin-top: 6px; font-size: 12px; color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+th.week-head { width: 104px; }
+td.week-cell {
+  width: 104px; padding: 12px 14px; border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+}
+tr:last-child td.week-cell { border-bottom: 0; }
+td.week-cell input { width: 100%; padding: 2px 6px; font-size: 13px; font-variant-numeric: tabular-nums; }
 .day-cell.has-log::after {
   content: "已记"; position: absolute; /* 位置由外层定位兜底，视觉上是一个小点 */
 }

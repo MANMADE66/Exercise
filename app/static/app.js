@@ -24,7 +24,7 @@
     const html = await response.text();
     const row = document.createElement("tr");
     row.className = "day-detail";
-    row.innerHTML = `<td colspan="7"></td>`;
+    row.innerHTML = `<td colspan="8"></td>`;
     row.firstElementChild.innerHTML = html;
     cell.closest("tr").after(row);
     cell.classList.add("is-selected");
@@ -55,7 +55,7 @@
   document.addEventListener(
     "change",
     (event) => {
-      const input = event.target.closest(".day-detail .autosave");
+      const input = event.target.closest(".autosave");
       if (input) input.form?.requestSubmit();
     },
     true,

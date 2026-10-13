@@ -25,9 +25,11 @@ def create_app(config: dict | None = None) -> Flask:
 
     from app import calendar as calendar_views
     from app import days as day_views
+    from app import metrics as metric_views
 
     app.register_blueprint(calendar_views.bp)
     app.register_blueprint(day_views.bp)
+    app.register_blueprint(metric_views.bp)
 
     # 本地单人应用：启动时把表建好，省掉一个"先初始化再启动"的步骤。
     # 表已存在时 create_all 是空操作。

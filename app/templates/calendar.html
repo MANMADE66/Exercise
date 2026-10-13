@@ -13,12 +13,12 @@
 
 <table class="month">
   <thead>
-    <tr>{% for wd in weekdays %}<th>{{ wd }}</th>{% endfor %}</tr>
+    <tr>{% for wd in weekdays %}<th>{{ wd }}</th>{% endfor %}<th class="week-head">周体重</th></tr>
   </thead>
   <tbody>
-    {% for week in weeks %}
+    {% for row in rows %}
     <tr>
-      {% for day in week %}
+      {% for day in row.days %}
         {% if day %}
           {% set pd = plan_days.get(day) %}
           <td class="day-cell{% if pd and pd.kind == 'rest' %} is-rest{% endif %}{% if day == today %} is-today{% endif %}{% if day in logged_dates %} has-log{% endif %}"
@@ -32,6 +32,13 @@
           <td class="day-cell"></td>
         {% endif %}
       {% endfor %}
+      <td class="week-cell">
+        {% if row.week_start %}
+        <form method="post" action="{{ url_for('metrics.save_metric', iso_date=row.week_start.isoformat()) }}">
+          <input class="autosave" type="text" name="weight" value="{{ weight_text(row.metric.weight_kg) if row.metric else '' }}" placeholder="kg" aria-label="本周体重">
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>

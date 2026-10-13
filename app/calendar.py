@@ -4,7 +4,9 @@ from datetime import date
 from flask import Blueprint, render_template, request
 
 from app.db import db
-from app.models import ActualItem, PlanDay
+from app.days import weight_text
+from app.metrics import week_start_for
+from app.models import ActualItem, BodyMetric, PlanDay
 
 bp = Blueprint("calendar", __name__)
 
@@ -60,14 +62,31 @@ def index():
         .distinct()
     }
 
+    rows = []
+    week_starts = []
+    for week in weeks:
+        first_day = next((d for d in week if d), None)
+        week_start = week_start_for(first_day) if first_day else None
+        if week_start:
+            week_starts.append(week_start)
+        rows.append({"days": week, "week_start": week_start})
+
+    metrics = {
+        m.week_start: m
+        for m in BodyMetric.query.filter(BodyMetric.week_start.in_(week_starts)).all()
+    }
+    for row in rows:
+        row["metric"] = metrics.get(row["week_start"]) if row["week_start"] else None
+
     return render_template(
         "calendar.html",
         year=year,
         month=month,
-        weeks=weeks,
+        rows=rows,
         weekdays=WEEKDAY_NAMES,
         plan_days=plan_days,
         logged_dates=logged_dates,
+        weight_text=weight_text,
         today=date.today(),
         prev_month=shift_month(year, month, -1),
         next_month=shift_month(year, month, 1),
