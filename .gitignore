@@ -7,6 +7,7 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+.pytest-tmp/
 *.egg-info/
 
 # Superpowers 工作区（账本、任务摘要、审查包）

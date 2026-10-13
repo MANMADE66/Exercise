@@ -1,0 +1,17 @@
+[project]
+name = "training-log"
+version = "0.1.0"
+description = "本地训练记录：月历 + 每日计划与实际完成"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.0",
+    "flask-sqlalchemy>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider"
