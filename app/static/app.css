@@ -142,6 +142,10 @@ button.link:hover { color: var(--danger); background: none; }
 .note-box { margin-top: 20px; }
 .note-box form { margin-top: 6px; }
 .inline-actions { margin-top: 8px; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 .flash {
   margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm);
   background: var(--accent-soft); color: var(--muted); font-size: 13px;

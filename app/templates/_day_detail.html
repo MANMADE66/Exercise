@@ -41,6 +41,7 @@
           <li>
             <form class="row-form" method="post" action="{{ url_for('days.save_actual_item', iso_date=day.isoformat()) }}">
               <input type="hidden" name="id" value="{{ item.id }}">
+              <button type="submit" class="visually-hidden" data-default-submit tabindex="-1" aria-hidden="true">保存</button>
               <span class="name">{{ item.exercise.name }}</span>
               <input class="w-num autosave" type="text" name="weight" value="{{ weight_text(item.weight_kg) }}" aria-label="重量">
               <input class="w-num autosave" type="text" name="sets" value="{{ item.sets or '' }}" aria-label="组数">

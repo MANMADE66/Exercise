@@ -38,3 +38,19 @@ def test_calendar_shows_train_day_title(client, app):
 
     html = client.get("/?month=2026-10").get_data(as_text=True)
     assert "胸 + 二头" in html
+
+
+def test_untitled_train_day_shows_no_label(client, app):
+    """只有感受、没排训练的日子不该在月历上被标成「训练」。"""
+    from app.db import db
+    from app.models import DayNote, PlanDay
+
+    with app.app_context():
+        day = PlanDay(date=date(2026, 10, 13), kind="train")
+        db.session.add(day)
+        db.session.flush()
+        db.session.add(DayNote(plan_day=day, text="只是随手记一句"))
+        db.session.commit()
+
+    html = client.get("/?month=2026-10").get_data(as_text=True)
+    assert '<div class="part">训练</div>' not in html

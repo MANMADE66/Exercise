@@ -87,6 +87,7 @@ def index():
         plan_days=plan_days,
         logged_dates=logged_dates,
         weight_text=weight_text,
+        metric_error=request.args.get("metric_error"),
         today=date.today(),
         prev_month=shift_month(year, month, -1),
         next_month=shift_month(year, month, 1),

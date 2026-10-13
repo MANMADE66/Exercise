@@ -12,6 +12,8 @@
 </div>
 <p class="sub">点某一天，看当天的计划与实际完成。</p>
 
+{% if metric_error %}<div class="flash error">体重没填对，这次没有保存。</div>{% endif %}
+
 <table class="month">
   <thead>
     <tr>{% for wd in weekdays %}<th>{{ wd }}</th>{% endfor %}<th class="week-head">周体重</th></tr>
@@ -25,8 +27,8 @@
           <td class="day-cell{% if pd and pd.kind == 'rest' %} is-rest{% endif %}{% if day == today %} is-today{% endif %}{% if day in logged_dates %} has-log{% endif %}"
               data-date="{{ day.isoformat() }}">
             <div class="num">{{ day.day }}</div>
-            {% if pd %}
-              <div class="part">{{ pd.title or ('休息' if pd.kind == 'rest' else '训练') }}</div>
+            {% if pd and (pd.title or pd.kind == 'rest') %}
+              <div class="part">{{ pd.title if pd.title else '休息' }}</div>
             {% endif %}
           </td>
         {% else %}

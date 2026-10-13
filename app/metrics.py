@@ -24,7 +24,15 @@ def save_metric(iso_date: str):
     week_start = week_start_for(day)
     weight = parse_weight(request.form.get("weight"))
     if weight is None:
-        return "体重没填对", 400
+        # 不甩一个裸错误页；回到月历并在那一行上面提示一句。
+        return redirect(
+            url_for(
+                "calendar.index",
+                month=week_start.strftime("%Y-%m"),
+                metric_error="1",
+            ),
+            code=303,
+        )
 
     metric = BodyMetric.query.filter_by(week_start=week_start).one_or_none()
     if metric is None:

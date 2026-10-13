@@ -71,3 +71,13 @@ def test_prefill_without_plan_is_harmless(client, app):
     assert r.status_code == 200
     with app.app_context():
         assert ActualItem.query.count() == 0
+
+
+def test_actual_row_default_submit_is_save_not_delete(client, app):
+    """在行内输入框里按回车，浏览器会点第一个 submit 按钮——它必须是保存，不能是删除。"""
+    client.post("/day/2026-10-13/actual", data={"exercise": "哑铃弯举"})
+    html = client.get("/day/2026-10-13").get_data(as_text=True)
+    row = html[html.index('class="row-form"') :]
+    row = row[: row.index("</form>")]
+    assert "data-default-submit" in row
+    assert row.index("data-default-submit") < row.index("formaction")
