@@ -1,0 +1,47 @@
+<div class="day-detail-inner">
+  <div class="day-detail-head">
+    <h2>{{ day.year }} 年 {{ day.month }} 月 {{ day.day }} 日{% if plan_day and plan_day.title %} · {{ plan_day.title }}{% endif %}</h2>
+    {% if plan_day and plan_day.kind == 'rest' %}<span class="muted">休息日</span>{% endif %}
+  </div>
+
+  <div class="cols">
+    <section id="planned" class="col-planned">
+      <p class="col-title">计划</p>
+      {% if planned %}
+        <ul class="items">
+        {% for item in planned %}
+          <li>
+            <span class="name">{{ item.exercise.name }}</span>
+            <span class="numbers">{{ dose(item.weight_kg, item.sets, item.reps) }}</span>
+          </li>
+        {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty">还没安排</p>
+      {% endif %}
+    </section>
+
+    <section id="actual" class="col-actual">
+      <p class="col-title">实际完成</p>
+      {% if actuals %}
+        <ul class="items">
+        {% for item in actuals %}
+          <li>
+            <span class="name">{{ item.exercise.name }}{% if item.note %}<span class="muted"> · {{ item.note }}</span>{% endif %}</span>
+            <span class="numbers">{{ dose(item.weight_kg, item.sets, item.reps) }}</span>
+          </li>
+        {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty">还没记录</p>
+      {% endif %}
+    </section>
+  </div>
+
+  {% if plan_day and plan_day.day_note %}
+  <div class="note-box">
+    <p class="col-title">感受</p>
+    <p>{{ plan_day.day_note.text }}</p>
+  </div>
+  {% endif %}
+</div>
