@@ -133,6 +133,8 @@ button.link:hover { color: var(--danger); background: none; }
 
 /* 备注与提示 */
 .note-box { margin-top: 20px; }
+.note-box form { margin-top: 6px; }
+.inline-actions { margin-top: 8px; }
 .flash {
   margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm);
   background: var(--accent-soft); color: var(--muted); font-size: 13px;

@@ -3,7 +3,7 @@ from datetime import date
 from flask import Blueprint, render_template, request
 
 from app.db import db
-from app.models import ActualItem, Exercise, PlanDay, PlannedItem
+from app.models import ActualItem, DayNote, Exercise, PlanDay, PlannedItem
 from app.parsing import parse_reps, parse_sets, parse_weight
 
 bp = Blueprint("days", __name__)
@@ -198,4 +198,22 @@ def delete_actual_item(item_id: int):
     day = item.plan_day.date
     db.session.delete(item)
     db.session.commit()
+    return render_day_fragment(day)
+
+
+@bp.post("/day/<iso_date>/note")
+def save_note(iso_date: str):
+    day = parse_day(iso_date)
+    if day is None:
+        return "无效日期", 400
+    text = (request.form.get("text") or "").strip()
+    plan_day = PlanDay.query.filter_by(date=day).one_or_none()
+    if plan_day is None and text:
+        plan_day = get_or_create_plan_day(day)
+    if plan_day is not None:
+        if plan_day.day_note is None:
+            plan_day.day_note = DayNote(text=text)
+        else:
+            plan_day.day_note.text = text
+        db.session.commit()
     return render_day_fragment(day)

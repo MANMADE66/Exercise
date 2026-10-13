@@ -69,10 +69,11 @@
     </section>
   </div>
 
-  {% if plan_day and plan_day.day_note %}
   <div class="note-box">
     <p class="col-title">感受</p>
-    <p>{{ plan_day.day_note.text }}</p>
+    <form method="post" action="{{ url_for('days.save_note', iso_date=day.isoformat()) }}">
+      <textarea name="text" placeholder="今天练得怎么样？哪里不对、哪里顺，随便写两句。">{{ plan_day.day_note.text if plan_day and plan_day.day_note else '' }}</textarea>
+      <div class="inline-actions"><button type="submit">保存</button></div>
+    </form>
   </div>
-  {% endif %}
 </div>
