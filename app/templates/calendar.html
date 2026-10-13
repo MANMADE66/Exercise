@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}训练记录 · {{ year }} 年 {{ month }} 月{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <h1>{{ year }} 年 {{ month }} 月</h1>
+  <nav class="nav">
+    <a href="{{ url_for('calendar.index', month=prev_month) }}">上个月</a>
+    <a href="{{ url_for('calendar.index', month=next_month) }}">下个月</a>
+  </nav>
+</div>
+<p class="sub">点某一天，看当天的计划与实际完成。</p>
+
+<table class="month">
+  <thead>
+    <tr>{% for wd in weekdays %}<th>{{ wd }}</th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+    {% for week in weeks %}
+    <tr>
+      {% for day in week %}
+        {% if day %}
+          {% set pd = plan_days.get(day) %}
+          <td class="day-cell{% if pd and pd.kind == 'rest' %} is-rest{% endif %}{% if day == today %} is-today{% endif %}{% if day in logged_dates %} has-log{% endif %}"
+              data-date="{{ day.isoformat() }}">
+            <div class="num">{{ day.day }}</div>
+            {% if pd %}
+              <div class="part">{{ pd.title or ('休息' if pd.kind == 'rest' else '训练') }}</div>
+            {% endif %}
+          </td>
+        {% else %}
+          <td class="day-cell"></td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
