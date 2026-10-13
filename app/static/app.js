@@ -36,4 +36,17 @@
     const cell = event.target.closest(".day-cell[data-date]");
     if (cell) open(cell);
   });
+
+  // 详情里的表单一律局部提交：拿回新片段替换当前展开的内容，不刷新整页。
+  document.addEventListener("submit", async (event) => {
+    const form = event.target.closest(".day-detail form");
+    if (!form || !openRow) return;
+    event.preventDefault();
+    const response = await fetch(form.action, {
+      method: "POST",
+      body: new FormData(form),
+    });
+    const html = await response.text();
+    openRow.firstElementChild.innerHTML = html;
+  });
 })();

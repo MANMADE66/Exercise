@@ -13,12 +13,24 @@
           <li>
             <span class="name">{{ item.exercise.name }}</span>
             <span class="numbers">{{ dose(item.weight_kg, item.sets, item.reps) }}</span>
+            <span class="actions">
+              <form method="post" action="{{ url_for('days.move_plan_item', item_id=item.id) }}"><input type="hidden" name="direction" value="up"><button class="link" type="submit" title="上移">↑</button></form>
+              <form method="post" action="{{ url_for('days.move_plan_item', item_id=item.id) }}"><input type="hidden" name="direction" value="down"><button class="link" type="submit" title="下移">↓</button></form>
+              <form method="post" action="{{ url_for('days.delete_plan_item', item_id=item.id) }}"><button class="link" type="submit" title="删除">删</button></form>
+            </span>
           </li>
         {% endfor %}
         </ul>
       {% else %}
         <p class="empty">还没安排</p>
       {% endif %}
+      <form class="inline" method="post" action="{{ url_for('days.add_plan_item', iso_date=day.isoformat()) }}">
+        <input class="w-name" type="text" name="exercise" placeholder="动作" aria-label="动作">
+        <input class="w-num" type="text" name="weight" placeholder="重量" aria-label="重量">
+        <input class="w-num" type="text" name="sets" placeholder="组数" aria-label="组数">
+        <input class="w-num" type="text" name="reps" placeholder="次数" aria-label="次数">
+        <button class="primary" type="submit">添加</button>
+      </form>
     </section>
 
     <section id="actual" class="col-actual">

@@ -97,6 +97,8 @@ ul.items li {
 }
 ul.items li:last-child { border-bottom: 0; }
 ul.items .numbers { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+ul.items .actions { display: flex; gap: 2px; align-items: center; }
+ul.items .actions form { margin: 0; }
 .col-actual ul.items li { color: var(--muted); }
 .col-actual ul.items .numbers { color: var(--text); }
 
