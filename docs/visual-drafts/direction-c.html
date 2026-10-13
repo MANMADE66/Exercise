@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>训练记录 · 方向 C（浅灰底，卡片描边）</title>
+<style>
+  :root{
+    --bg:#f3f4f7; --surface:#ffffff; --text:#0f172a; --muted:#64748b;
+    --hairline:#e2e8f0; --accent:#4f46e5; --accent-soft:#eef2ff;
+    --radius:10px; --gap:18px;
+    --font:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);
+       font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:44px 32px 72px}
+  h1{font-size:22px;font-weight:650;letter-spacing:-.01em;margin:0}
+  .sub{color:var(--muted);font-size:13px;margin:6px 0 28px}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);
+        border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden;
+        box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  th{font-weight:500;font-size:12px;color:var(--muted);padding:11px 14px;text-align:left;
+     border-bottom:1px solid var(--hairline);background:#fafbfc}
+  td{padding:12px 14px;border-bottom:1px solid var(--hairline);vertical-align:top;height:78px}
+  tr:last-child td{border-bottom:0}
+  .n{font-size:13px;font-weight:500;color:var(--text)}
+  .rest .n{color:var(--muted);font-weight:400}
+  .part{margin-top:2px;font-size:13px}
+  .rest .part{color:var(--muted)}
+  .week{display:inline-block;margin-top:6px;padding:1px 7px;border-radius:999px;
+        background:var(--accent-soft);color:var(--accent);font-size:11px;
+        font-variant-numeric:tabular-nums}
+  .detail{margin-top:32px}
+  .detail h2{font-size:16px;font-weight:650;margin:0 0 14px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+  .col{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--radius);
+       padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .col h3{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 10px;letter-spacing:.02em}
+  .col.planned h3{color:var(--accent)}
+  ul{list-style:none;margin:0;padding:0}
+  li{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--hairline)}
+  li:last-child{border-bottom:0}
+  li span{color:var(--muted);font-variant-numeric:tabular-nums}
+  .note{margin-top:22px;padding:13px 15px;background:var(--surface);border:1px solid var(--hairline);
+        border-radius:var(--radius);color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>2026 年 10 月</h1>
+  <p class="sub">月历 · 点开某一天看计划与实际完成（样张，数据为假）</p>
+
+  <table>
+    <thead><tr><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th></tr></thead>
+    <tbody>
+      <tr><td></td><td></td><td></td>
+        <td><div class="n">1</div><div class="part">胸 + 二头</div></td>
+        <td><div class="n">2</div><div class="part">背 + 三头</div></td>
+        <td><div class="n">3</div><div class="part">肩 + 臀腿</div></td>
+        <td class="rest"><div class="n">4</div><div class="part">休息</div></td></tr>
+      <tr>
+        <td><div class="n">5</div><div class="part">胸 + 二头</div></td>
+        <td><div class="n">6</div><div class="part">背 + 三头</div></td>
+        <td><div class="n">7</div><div class="part">肩 + 臀腿</div></td>
+        <td class="rest"><div class="n">8</div><div class="part">休息</div></td>
+        <td><div class="n">9</div><div class="part">胸 + 二头</div></td>
+        <td><div class="n">10</div><div class="part">背 + 三头</div></td>
+        <td><div class="n">11</div><div class="part">肩 + 臀腿</div><span class="week">70.2 kg</span></td></tr>
+      <tr>
+        <td class="rest"><div class="n">12</div><div class="part">休息</div></td>
+        <td><div class="n">13</div><div class="part">胸 + 二头</div></td>
+        <td><div class="n">14</div><div class="part">背 + 三头</div></td>
+        <td><div class="n">15</div><div class="part">肩 + 臀腿</div></td>
+        <td class="rest"><div class="n">16</div><div class="part">休息</div></td>
+        <td><div class="n">17</div><div class="part">胸 + 二头</div></td>
+        <td><div class="n">18</div><div class="part">背 + 三头</div><span class="week">70.4 kg</span></td></tr>
+      <tr>
+        <td><div class="n">19</div><div class="part">肩 + 臀腿</div></td>
+        <td class="rest"><div class="n">20</div><div class="part">休息</div></td>
+        <td><div class="n">21</div><div class="part">胸 + 二头</div></td>
+        <td><div class="n">22</div><div class="part">背 + 三头</div></td>
+        <td><div class="n">23</div><div class="part">肩 + 臀腿</div></td>
+        <td class="rest"><div class="n">24</div><div class="part">休息</div></td>
+        <td><div class="n">25</div><div class="part">胸 + 二头</div></td></tr>
+      <tr>
+        <td><div class="n">26</div><div class="part">背 + 三头</div></td>
+        <td><div class="n">27</div><div class="part">肩 + 臀腿</div></td>
+        <td class="rest"><div class="n">28</div><div class="part">休息</div></td>
+        <td><div class="n">29</div><div class="part">胸 + 二头</div></td>
+        <td><div class="n">30</div><div class="part">背 + 三头</div></td>
+        <td><div class="n">31</div><div class="part">肩 + 臀腿</div></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <section class="detail">
+    <h2>10 月 13 日 · 胸 + 二头</h2>
+    <div class="cols">
+      <div class="col planned">
+        <h3>计划</h3>
+        <ul>
+          <li>卧推 <span>100 kg · 4 组 × 8–12</span></li>
+          <li>上斜哑铃卧推 <span>32 kg · 4 组 × 8–12</span></li>
+          <li>绳索夹胸 <span>25 kg · 4 组 × 10–12</span></li>
+          <li>哑铃弯举 <span>14 kg · 4 组 × 10–12</span></li>
+        </ul>
+      </div>
+      <div class="col actual">
+        <h3>实际完成</h3>
+        <ul>
+          <li>卧推 <span>95 kg · 3 组 · 12/10/8</span></li>
+          <li>上斜哑铃卧推 <span>32 kg · 4 组 · 12/12/10/9</span></li>
+          <li>绳索夹胸 <span>25 kg · 4 组 · 12/12/12/10</span></li>
+          <li>哑铃弯举 <span>14 kg · 4 组 · 12/12/10/10</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">今天状态一般：卧推最后一组明显吃力，少做了一组。</div>
+  </section>
+</div>
+</body>
+</html>

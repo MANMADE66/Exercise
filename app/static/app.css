@@ -1,0 +1,145 @@
+/* 视觉方向：A（浅色极简 · 大留白）。换方向只需要改下面这组令牌。 */
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --text: #111214;
+  --muted: #6f7480;
+  --hairline: #e8e8e6;
+  --accent: #111214;
+  --accent-soft: #f1f1ef;
+  --danger: #b4423a;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --gap: 20px;
+  --font: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Microsoft YaHei", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 44px 32px 80px; }
+
+h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+h2 { font-size: 16px; font-weight: 600; margin: 0 0 14px; }
+h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 0 0 10px; letter-spacing: 0.02em; }
+
+.sub { color: var(--muted); font-size: 13px; margin: 6px 0 28px; }
+.muted { color: var(--muted); }
+.empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+/* 顶栏 */
+.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.nav a {
+  color: var(--muted); text-decoration: none; font-size: 13px;
+  padding: 4px 8px; border-radius: var(--radius-sm);
+}
+.nav a:hover { background: var(--accent-soft); color: var(--text); }
+.nav a + a { margin-left: 6px; }
+
+/* 月历 */
+table.month {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--radius); overflow: hidden;
+}
+table.month th {
+  font-weight: 400; font-size: 12px; color: var(--muted);
+  padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--hairline);
+}
+.day-cell { padding: 12px 14px; border-bottom: 1px solid var(--hairline); vertical-align: top; height: 82px; }
+tr:last-child .day-cell { border-bottom: 0; }
+.day-cell[data-date] { cursor: pointer; }
+.day-cell[data-date]:hover { background: #fafaf9; }
+.day-cell.is-selected { background: var(--accent-soft); }
+.day-cell.is-rest .part { color: var(--muted); }
+.day-cell.is-today .num { font-weight: 600; }
+.day-cell.is-today .num::after {
+  content: "今天"; margin-left: 8px; font-size: 11px; font-weight: 400;
+  color: var(--muted); border: 1px solid var(--hairline); border-radius: 999px; padding: 0 6px;
+}
+.num { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.part { margin-top: 2px; font-size: 13px; }
+.week-metric {
+  display: inline-block; margin-top: 6px; font-size: 12px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.day-cell.has-log::after {
+  content: "已记"; position: absolute; /* 位置由外层定位兜底，视觉上是一个小点 */
+}
+.day-cell { position: relative; }
+.day-cell.has-log .num::before {
+  content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px;
+  border-radius: 50%; background: var(--text); vertical-align: middle;
+}
+
+/* 展开的当天详情 */
+tr.day-detail > td { padding: 0; border-bottom: 1px solid var(--hairline); background: #fcfcfb; }
+.day-detail-inner { padding: 22px 22px 24px; }
+.day-detail-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); margin-top: 16px; }
+.col-title { font-size: 12px; font-weight: 500; color: var(--muted); margin: 0 0 8px; letter-spacing: 0.02em; }
+.col-planned .col-title { color: var(--text); }
+
+ul.items { list-style: none; margin: 0; padding: 0; }
+ul.items li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--hairline);
+}
+ul.items li:last-child { border-bottom: 0; }
+ul.items .numbers { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.col-actual ul.items li { color: var(--muted); }
+.col-actual ul.items .numbers { color: var(--text); }
+
+/* 表单 */
+form.inline { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+input[type="text"], input[type="number"], input[type="date"], textarea, select {
+  font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  padding: 6px 10px; min-width: 0;
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent-soft); border-color: var(--text); }
+input.w-name { flex: 1 1 160px; }
+input.w-num { width: 84px; }
+textarea { width: 100%; resize: vertical; min-height: 64px; }
+button {
+  font: inherit; color: var(--text); background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  padding: 6px 12px; cursor: pointer;
+}
+button:hover { background: var(--accent-soft); }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.primary:hover { opacity: 0.9; }
+button.link {
+  border: 0; background: none; color: var(--muted); padding: 2px 6px; font-size: 12px;
+}
+button.link:hover { color: var(--danger); background: none; }
+
+/* 备注与提示 */
+.note-box { margin-top: 20px; }
+.flash {
+  margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--accent-soft); color: var(--muted); font-size: 13px;
+}
+.flash.error { color: var(--danger); background: #fbf0ef; }
+
+/* 循环模板列表 */
+.tpl-list { list-style: none; margin: 0; padding: 0; }
+.tpl-list li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--hairline);
+}
+.tpl-list li:last-child { border-bottom: 0; }
+.card {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--radius); padding: 20px; margin-top: 20px;
+}
