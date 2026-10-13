@@ -42,11 +42,22 @@
     const form = event.target.closest(".day-detail form");
     if (!form || !openRow) return;
     event.preventDefault();
-    const response = await fetch(form.action, {
+    const target = event.submitter?.getAttribute("formaction") || form.action;
+    const response = await fetch(target, {
       method: "POST",
       body: new FormData(form),
     });
     const html = await response.text();
     openRow.firstElementChild.innerHTML = html;
   });
+
+  // 行内输入改完就存：失焦时提交自己那一行。
+  document.addEventListener(
+    "change",
+    (event) => {
+      const input = event.target.closest(".day-detail .autosave");
+      if (input) input.form?.requestSubmit();
+    },
+    true,
+  );
 })();

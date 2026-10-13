@@ -3,7 +3,7 @@ from datetime import date
 from flask import Blueprint, render_template, request
 
 from app.db import db
-from app.models import Exercise, PlanDay, PlannedItem
+from app.models import ActualItem, Exercise, PlanDay, PlannedItem
 from app.parsing import parse_reps, parse_sets, parse_weight
 
 bp = Blueprint("days", __name__)
@@ -38,6 +38,10 @@ def format_weight(value: float) -> str:
     return f"{value:g}"
 
 
+def weight_text(value) -> str:
+    return "" if value is None else format_weight(value)
+
+
 def format_dose(weight_kg, sets, reps) -> str:
     """把重量 / 组数 / 次数拼成一行可读的剂量；空值一律跳过，不显示 None。"""
     parts = []
@@ -60,6 +64,7 @@ def render_day_fragment(day: date) -> str:
         planned=list(plan_day.items) if plan_day else [],
         actuals=list(plan_day.actuals) if plan_day else [],
         dose=format_dose,
+        weight_text=weight_text,
     )
 
 
@@ -119,4 +124,78 @@ def move_plan_item(item_id: int):
         for position, sibling in enumerate(siblings):
             sibling.position = position
         db.session.commit()
+    return render_day_fragment(day)
+
+
+@bp.post("/day/<iso_date>/actual/prefill")
+def prefill_actual(iso_date: str):
+    day = parse_day(iso_date)
+    if day is None:
+        return "无效日期", 400
+    plan_day = PlanDay.query.filter_by(date=day).one_or_none()
+    if plan_day is not None:
+        already = {a.planned_item_id for a in plan_day.actuals if a.planned_item_id}
+        for item in plan_day.items:
+            if item.id in already:
+                continue
+            db.session.add(
+                ActualItem(
+                    plan_day=plan_day,
+                    planned_item=item,
+                    exercise_id=item.exercise_id,
+                    weight_kg=item.weight_kg,
+                    sets=item.sets,
+                    reps=item.reps,
+                    position=len(plan_day.actuals),
+                )
+            )
+        db.session.commit()
+    return render_day_fragment(day)
+
+
+@bp.post("/day/<iso_date>/actual")
+def save_actual_item(iso_date: str):
+    day = parse_day(iso_date)
+    if day is None:
+        return "无效日期", 400
+
+    raw_id = (request.form.get("id") or "").strip()
+    if raw_id:
+        try:
+            item = db.session.get(ActualItem, int(raw_id))
+        except ValueError:
+            item = None
+        if item is None:
+            return "找不到这条", 404
+        item.weight_kg = parse_weight(request.form.get("weight"))
+        item.sets = parse_sets(request.form.get("sets"))
+        item.reps = parse_reps(request.form.get("reps"))
+        item.note = (request.form.get("note") or "").strip() or None
+    else:
+        name = (request.form.get("exercise") or "").strip()
+        if name:
+            plan_day = get_or_create_plan_day(day)
+            db.session.add(
+                ActualItem(
+                    plan_day=plan_day,
+                    exercise=get_or_create_exercise(name),
+                    weight_kg=parse_weight(request.form.get("weight")),
+                    sets=parse_sets(request.form.get("sets")),
+                    reps=parse_reps(request.form.get("reps")),
+                    note=(request.form.get("note") or "").strip() or None,
+                    position=len(plan_day.actuals),
+                )
+            )
+    db.session.commit()
+    return render_day_fragment(day)
+
+
+@bp.post("/actual-item/<int:item_id>/delete")
+def delete_actual_item(item_id: int):
+    item = db.session.get(ActualItem, item_id)
+    if item is None:
+        return "找不到这条", 404
+    day = item.plan_day.date
+    db.session.delete(item)
+    db.session.commit()
     return render_day_fragment(day)

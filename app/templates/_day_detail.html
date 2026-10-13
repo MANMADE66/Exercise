@@ -39,14 +39,33 @@
         <ul class="items">
         {% for item in actuals %}
           <li>
-            <span class="name">{{ item.exercise.name }}{% if item.note %}<span class="muted"> · {{ item.note }}</span>{% endif %}</span>
-            <span class="numbers">{{ dose(item.weight_kg, item.sets, item.reps) }}</span>
+            <form class="row-form" method="post" action="{{ url_for('days.save_actual_item', iso_date=day.isoformat()) }}">
+              <input type="hidden" name="id" value="{{ item.id }}">
+              <span class="name">{{ item.exercise.name }}</span>
+              <input class="w-num autosave" type="text" name="weight" value="{{ weight_text(item.weight_kg) }}" aria-label="重量">
+              <input class="w-num autosave" type="text" name="sets" value="{{ item.sets or '' }}" aria-label="组数">
+              <input class="w-mid autosave" type="text" name="reps" value="{{ item.reps or '' }}" aria-label="次数">
+              <input class="w-note autosave" type="text" name="note" value="{{ item.note or '' }}" placeholder="备注" aria-label="备注">
+              <button class="link" type="submit" formaction="{{ url_for('days.delete_actual_item', item_id=item.id) }}" title="删除">删</button>
+            </form>
           </li>
         {% endfor %}
         </ul>
       {% else %}
         <p class="empty">还没记录</p>
       {% endif %}
+      {% if planned %}
+      <form class="inline" method="post" action="{{ url_for('days.prefill_actual', iso_date=day.isoformat()) }}">
+        <button type="submit">按计划预填</button>
+      </form>
+      {% endif %}
+      <form class="inline" method="post" action="{{ url_for('days.save_actual_item', iso_date=day.isoformat()) }}">
+        <input class="w-name" type="text" name="exercise" placeholder="计划外的动作" aria-label="计划外的动作">
+        <input class="w-num" type="text" name="weight" placeholder="重量" aria-label="重量">
+        <input class="w-num" type="text" name="sets" placeholder="组数" aria-label="组数">
+        <input class="w-num" type="text" name="reps" placeholder="次数" aria-label="次数">
+        <button type="submit">添加</button>
+      </form>
     </section>
   </div>
 

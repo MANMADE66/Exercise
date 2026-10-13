@@ -112,6 +112,11 @@ input[type="text"], input[type="number"], input[type="date"], textarea, select {
 input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent-soft); border-color: var(--text); }
 input.w-name { flex: 1 1 160px; }
 input.w-num { width: 84px; }
+input.w-mid { width: 96px; }
+input.w-note { flex: 1 1 110px; min-width: 90px; }
+ul.items .row-form { display: flex; align-items: baseline; gap: 6px; flex: 1; }
+ul.items .row-form .name { flex: 0 0 auto; }
+ul.items .row-form input { padding: 2px 6px; font-size: 13px; }
 textarea { width: 100%; resize: vertical; min-height: 64px; }
 button {
   font: inherit; color: var(--text); background: var(--surface);
