@@ -1,0 +1,17 @@
+# 运行时数据（数据库在这里）
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Superpowers 工作区（账本、任务摘要、审查包）
+.superpowers/
+
+# 系统
+Thumbs.db
+desktop.ini
