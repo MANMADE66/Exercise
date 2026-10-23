@@ -1,31 +1,53 @@
 """FastAPI 应用工厂。
 
-骨架阶段：CORS(dev) + health 路由。静态托管（prod）与业务路由随后续票补入。
+启动（lifespan）：建库 + WAL + JWT 密钥落盘（`app/db.py`），引擎与会话工厂挂 `app.state`。
+骨架阶段只有 CORS(dev) + health 路由；业务路由随执行票补入，prod 静态托管（D11）同理。
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
+from app.core.config import Settings
+from app.core.config import settings as default_settings
+from app.db import create_db_engine, create_session_factory, init_db, load_or_create_secret_key
 from app.routers import health
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="训练记录 API", version=settings.version)
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    config: Settings = app.state.settings
+    engine = create_db_engine(config.db_path)
+    init_db(engine)
+    app.state.engine = engine
+    app.state.session_factory = create_session_factory(engine)
+    app.state.secret_key = load_or_create_secret_key(config.secret_key_path, config.secret_env)
+    try:
+        yield
+    finally:
+        engine.dispose()
 
-    if settings.dev_cors:
-        app.add_middleware(
+
+def create_app(config: Settings | None = None) -> FastAPI:
+    resolved = config or default_settings
+    application = FastAPI(title="训练记录 API", version=resolved.version, lifespan=lifespan)
+    application.state.settings = resolved
+
+    if resolved.dev_cors:
+        application.add_middleware(
             CORSMiddleware,
-            allow_origins=list(settings.cors_origins),
+            allow_origins=list(resolved.cors_origins),
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
 
-    app.include_router(health.router)
-    return app
+    application.include_router(health.router)
+    return application
 
 
 app = create_app()

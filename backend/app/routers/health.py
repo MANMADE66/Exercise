@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.config import settings
+from app.core.config import settings
 from app.schemas import HealthResponse
 
 router = APIRouter(tags=["system"])
