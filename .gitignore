@@ -20,3 +20,14 @@ pytest-cache-files-*/
 # 系统
 Thumbs.db
 desktop.ini
+
+# 前端
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# 后端运行数据与缓存
+backend/.venv/
+backend/data/
+.mypy_cache/
+.ruff_cache/

@@ -1,0 +1,44 @@
+[project]
+name = "training-log-backend"
+version = "0.1.0"
+description = "训练记录 v2 后端（FastAPI）"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.161.1",
+  "uvicorn[standard]==0.54.0",
+  "sqlalchemy==2.1.6",
+  "pydantic==2.14.1",
+  "bcrypt==5.0.0",
+  "pyjwt==2.15.1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest==9.1.1",
+  "httpx==0.28.1",
+  "ruff==0.17.2",
+  "mypy==2.4.0",
+  "mutmut==3.8.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["app", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q -p no:cacheprovider"
+
+# mutmut 依赖 os.fork，Windows 只能在 WSL 内跑；source_paths 待业务模块落地后补
+[tool.mutmut]
+source_paths = ["app"]
