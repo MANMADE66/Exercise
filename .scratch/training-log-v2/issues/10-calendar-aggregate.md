@@ -1,5 +1,6 @@
 Type: task
 Status: ready-for-agent
+Claimed by: pi（2026-10-24）
 
 ## Question
 
@@ -23,3 +24,16 @@ Status: ready-for-agent
 - 测试按 HLD §12.0 `calendar` 行：非法 month 回退、网格补 null、`logged_dates` 正确、周聚合行（周一起点 + metric 挂对行）、隔离（B 的记录不出现在 A 的日历）。
 
 ## Answer
+
+已落地 `731e732`。实现与裁定：
+
+- **`services/calendar_service.py`**：`month_grid` / `parse_month` 与 v1 `app/calendar.py` 逐行同义（前补 `[None]*first.weekday()`、尾部补到 7 的整数倍、`date.fromisoformat(f"{raw}-01")` 失败即回退当月）；`week_start_for(day) = day - timedelta(days=day.weekday())` 落在这里，作为周起点的**唯一**算法（票 15 的写入归一复用，不另写一份）。`calendar_month(db, *, user_id, month)` 是唯一入口，`?month=` 解析在 service 内、routers 只透传字符串。
+- **契约形状**（`schemas.py`）：`CalendarAggregate{year, month, weeks[], logged_dates[]}` → `CalendarWeek{week_start, cells[7], metric}` → `CalendarCell{date, kind, title}`，`BodyMetricOut{week_start, weight_kg, body_fat_pct, note}`。三个裁定：
+  1. **补齐位是 `null`，空格子不是**：`cells: list[CalendarCell | None]`，`null` 恒为「月初日前 / 月末日后」；当月某天没有 PlanDay 时格子仍在，只是 `kind`/`title` 为 `null`（前端据此区分「不在本月」与「没排计划」）。
+  2. **`week_start` 非空**：v1 模板里 `week_start` 可能为 `None`（只为渲染兜底），但 `month_grid` 保证每行至少有真实日期，故契约收紧为 `date`；跨月首行的 `week_start` 落在上一个月（如 2026-07 首行 = 2026-06-29），这是 D9 照搬 v1 的结果。
+  3. **返回生效的 `year`/`month`**：`?month=` 非法被静默回退后，前端必须知道实际展示的是哪个月（FR-4.4 的 prev/next 由前端算，需要基准）；`today` 不进契约，前端本地取。
+- **`logged_dates`**：`select(PlanDay.date).join(ActualItem).where(PlanDay.user_id, ActualItem.user_id, 月区间).distinct()`，升序返回。join 的 `user_id` 与 `select_owned` 同形收窄（票面点名的易漏点），并加了隔离用例反向验证。
+- **`BodyMetricOut`**：本票先定形状，票 15 直接复用；`metric` 为 `null` 表示该周没记录（不存在「空记录」，CONTEXT.md「BodyMetric」）。
+- **类型坑（记一笔）**：`CalendarCell` 的字段就叫 `date`，类体里写 `date: date` 会让注解指向字段自身，Pydantic 报 `unevaluable-type-annotation`；`schemas.py` 因此加了模块级别名 `IsoDate = date`，日历三个模型的日期字段统一用它。
+- **测试** `backend/tests/test_calendar.py`（9 例）：非法/缺省 month 回退当月、网格补 null（2026-02 首行补 6 格 / 末行补 1 格）、格子 kind/title、`logged_dates` 判据（只有计划日不算、多条实际条目只出现一次、月外记录不进集合）、周一起点 + metric 挂对行（含跨月首行）、A/B 隔离（B 的计划日/记录日/周体重都不出现，反向亦然）、无 token 401。
+- verify 全绿（**79 例**，契约重生成零手改）。过程中发现票 09 的 `days_service.py` / `routers/days.py` / `test_days.py` 已在同一工作树里被并行改动（其 `schemas.py` 半边未落，mypy/ruff 会红），本票验证时把这三份未跟踪文件临时移出后再跑 verify、随即原样移回（md5 校验一致），提交只含票 10 的路径，未触碰票 09 的在途文件。
