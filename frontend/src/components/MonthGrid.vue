@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import type { CalendarWeek } from "../api";
 import { dayOfMonth } from "../format";
+import WeekMetric from "./WeekMetric.vue";
 
 /**
  * 月历的**表结构**（spec 决策 8/9）：表头 + 按周的行 + 格子状态类 + 展开行插槽。
@@ -76,8 +77,10 @@ function select(date: string): void {
               </div>
             </td>
           </template>
-          <!-- 第 8 列：周体重（票 17 填 WeekMetric；本票先留空单元格以对齐表头） -->
-          <td class="week-cell"></td>
+          <!-- 第 8 列：周体重（WeekMetric 自己持有该行 metric 与保存逻辑） -->
+          <td class="week-cell">
+            <WeekMetric :week-start="week.week_start" :metric="week.metric ?? null" />
+          </td>
         </tr>
         <tr
           v-if="slots.expanded !== undefined && weekIndex === expandedRowIndex"
