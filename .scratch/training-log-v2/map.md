@@ -6,7 +6,7 @@
 
 ## 完成情况（2026-10-24）
 
-**票 01–13 全部闭环**（每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
+**票 01–13、15 已闭环**（票 14 亦已提交 `2c733c8`，其自身记账回填本表；每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
 
 | 票 | 事项 | 落地 |
 |---|---|---|
@@ -23,10 +23,11 @@
 | 11 | 计划条目增删移（FR-6 三端点 + 并发 get-or-create 回滚重查） | `3999ad0` |
 | 12 | 实际完成记录四端点（FR-7 prefill / PATCH 三态 / 计划外新增 / 删除） | `6e731b9` |
 | 13 | 感受笔记（FR-8 整段保存 + 条件隐式建日） | `7c73255` |
+| 15 | 周体重 upsert（FR-10：`PUT /metrics/{week_start}` + 周一归一 + 非法体重 422 不落库） | `4ce9c04` |
 
 ## 前沿（2026-10-24 切票，业务域）
 
-雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 14 · 15**（票 09 `2be4f8b`、票 10 `731e732`、票 11 `3999ad0`、票 12 `6e731b9`、票 13 `7c73255` 已闭环）：
+雾区「执行层里程碑」已毕业为本轮 7 张票。**前沿：14 已提交 `2c733c8`（待其自身记账）**（票 09 `2be4f8b`、票 10 `731e732`、票 11 `3999ad0`、票 12 `6e731b9`、票 13 `7c73255`、票 15 `4ce9c04` 已闭环）：
 
 | 票 | 事项 | 阻塞 | 可动 |
 |---|---|---|---|
@@ -36,9 +37,9 @@
 | 12 | [实际记录与 prefill（FR-7）](issues/12-actual-items.md) | 09 ✅ | ✅ 已落地 `6e731b9` |
 | 13 | [感受笔记（FR-8）](issues/13-day-note.md) | 09 ✅ | ✅ 已落地 `7c73255` |
 | 14 | [循环模板（FR-9）](issues/14-templates.md) | 09 ✅ | ✅ 前沿 |
-| 15 | [周体重（FR-10）](issues/15-week-metrics.md) | — | ✅ 前沿 |
+| 15 | [周体重（FR-10）](issues/15-week-metrics.md) | — | ✅ 已落地 `4ce9c04` |
 
-切票理由（保留原文）：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。**现在根已落地**：11/12/13 都会改 `services/days_service.py` 与 `routers/days.py`，同一文件不宜多会话同时开工，按 11 → 12 → 13 顺序（或不同会话各占一票并错开提交）更稳；14 只碰 `template_service.py`，可并行。**11、12、13 已闭环**，`days_service.py` / `routers/days.py` 的本轮写端点全部落完；剩下的 14（`template_service.py`）与 15（`metrics_service.py`）各碰自己的新文件，可并行。
+切票理由（保留原文）：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。**现在根已落地**：11/12/13 都会改 `services/days_service.py` 与 `routers/days.py`，同一文件不宜多会话同时开工，按 11 → 12 → 13 顺序（或不同会话各占一票并错开提交）更稳；14 只碰 `template_service.py`，可并行。**11、12、13 已闭环**，`days_service.py` / `routers/days.py` 的本轮写端点全部落完；剩下的 14（`template_service.py`）与 15（`metrics_service.py`）各碰自己的新文件，可并行。**15 已闭环**（`4ce9c04`）；只剩 14。
 
 ## Notes
 
@@ -89,3 +90,4 @@
 - 移动端适配、云部署、HTTPS / 公网暴露（SRS §2.4）
 - 忘记密码 / 邮箱找回、第三方登录（SRS §1.2）
 - 旧数据迁移（D8：空库起步，data/app.db 弃置）
+- 票 15（周体重，已落地 `4ce9c04`）：`PUT /metrics/{week_start}` → `BodyMetricOut`。写逻辑自立新文件 `services/metrics_service.py`（票面二选一里选「写读分家」，HLD §5.1 目录树已同步），读仍在 `calendar_service.py`，`week_start_for` 与新增的 `metric_out`（ORM→契约的唯一映射）都由那里取。三处裁定：① `week_start` **不假设是周一**——路径参数收任意日期，service 归一到该周周一再 upsert（v1 语义；「必须周一否则 400」是新的裁定，本票不加）；② **非法体重挡在契约层**：`BodyMetricUpdate.weight` 的 validator 用 `parse_weight` 判，非法即 `PydanticCustomError` → 原生 422 且 handler 都进不去，所以「不落库」是结构性的（不必先写后回滚）；`body_fat` 非法静默 NULL、`note` 空白即 NULL、PUT 整体替换（v1 同语义）；③ 并发同周 PUT 撞 `UNIQUE(user_id, week_start)` 时用 SAVEPOINT 只回滚这一条再重查复用（`days_service._insert_or_refetch` 同一取向但不复用：那边 get-or-create，这边建完还要覆盖值）。另记两条流程事实：`verify.sh` 的禁手改关比的是 **index 与工作树**，合法契约变更后要先把重新生成的 `openapi.json` / `api-types.ts` `git add` 再跑第二遍；本票与票 14 同树并行，提交里带了票 14 的模板契约模型（无 router 引用 → 不进 `openapi.json`）与只含本票的生成物。[`issues/15-week-metrics.md`](issues/15-week-metrics.md)
