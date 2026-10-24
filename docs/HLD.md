@@ -73,7 +73,7 @@
 │ routers/     auth · calendar · days · templates · metrics           │
 │              （HTTP 薄层：参数→service→状态码映射）                    │
 │ core/deps    get_db · get_current_user（JWT 解码 + 查库）             │
-│ services/    calendar · days · templates                            │
+│ services/    isolation · calendar · days · templates                │
 │              （业务规则 + 隔离过滤 + 事务 + 聚合组装）                  │
 │ models.py    10 表 SQLAlchemy ORM                                    │
 │ parsing.py   重量/组数/次数容错解析（语义与旧版一致）                   │
@@ -107,11 +107,13 @@
 │  │  ├─ core/
 │  │  │  ├─ config.py          # 路径常量、环境变量（库路径/SECRET/token 有效期）
 │  │  │  ├─ security.py         # bcrypt 哈希与校验、JWT 编解码
+│  │  │  ├─ errors.py           # NotFoundError + NOT_FOUND_DETAIL（404 的唯一出口）
 │  │  │  └─ deps.py             # get_current_user（Bearer→users 查询→当前用户）
 │  │  ├─ models.py              # 10 张表 ORM
 │  │  ├─ schemas.py             # Pydantic 请求/响应模型（DayAggregate、CalendarAggregate 等）
 │  │  ├─ parsing.py             # 容错解析（无效→None/空字符串，绝不抛错）
 │  │  ├─ services/
+│  │  │  ├─ isolation.py      # 归属隔离唯一入口：select_owned / require_*（父链）/ find_*
 │  │  │  ├─ calendar_service.py # 月历网格、logged_dates、周归属与周聚合行
 │  │  │  ├─ days_service.py     # get_or_create、position 维护、prefill 幂等、日聚合组装
 │  │  │  └─ template_service.py # 模板 CRUD、apply 逐日检查跳过
@@ -137,7 +139,7 @@
 └─ README.md                    # dev / prod 双启动说明
 ```
 
-> **目标树说明（2026-10-24 校准，票 07 更新）**：`services/calendar_service.py`、`days_service.py`、`template_service.py`、四个业务 router（calendar/days/templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `routers/health.py` · `routers/auth.py` · `services/auth_service.py`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07）。
+> **目标树说明（2026-10-24 校准，票 08 更新）**：`services/calendar_service.py`、`days_service.py`、`template_service.py`、四个业务 router（calendar/days/templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/errors.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `services/isolation.py` · `routers/health.py` · `routers/auth.py` · `services/auth_service.py`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07/08）。
 
 ### 5.2 数据结构要点
 
@@ -184,6 +186,8 @@ SECRET：首启随机生成写入 backend/data/secret.key（重启不失效）�
 3. **归属校验**：按 id 操作的资源（plan-item / actual-item / note / template 及其子项）经父链 join 回 user_id，不匹配 **404**，与「不存在」同码同文案——防资源枚举（SRS FR-3.2）。
 4. **动作库命名空间**：exercise 按 (user_id, name) 唯一，get_or_create 仅在本人命名空间查找/创建；A 的「深蹲」对 B 不可见（SRS FR-3.4）。
 5. **错误归一**：`{"detail": "..."}`；400 日期/月份格式非法；401 鉴权；404 不存在或不属于你；409 用户名重复；422 字段校验。
+
+> 落地位置（票 08）：判断只写在 `app/services/isolation.py`（`select_owned` 列表收窄；`require_*` 父链校验；`find_*` 业务键查找），routers 只传当前 `user_id`，不拼过滤条件；404 的文案与状态码只在 `app/core/errors.py` 产出一次（`NOT_FOUND_DETAIL` + `NotFoundError` + 全局处理器），业务 router 不需要 try/except。
 
 ---
 

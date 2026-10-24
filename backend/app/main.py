@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import Settings
 from app.core.config import settings as default_settings
+from app.core.errors import NotFoundError, not_found_handler
 from app.db import create_db_engine, create_session_factory, init_db, load_or_create_secret_key
 from app.routers import auth, health
 
@@ -36,6 +37,9 @@ def create_app(config: Settings | None = None) -> FastAPI:
     resolved = config or default_settings
     application = FastAPI(title="训练记录 API", version=resolved.version, lifespan=lifespan)
     application.state.settings = resolved
+
+    # 404 的唯一出口：service 抛 NotFoundError，这里统一映射成同码同文案（HLD §9.2）
+    application.add_exception_handler(NotFoundError, not_found_handler)
 
     if resolved.dev_cors:
         application.add_middleware(
