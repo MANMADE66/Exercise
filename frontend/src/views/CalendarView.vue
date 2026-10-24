@@ -2,12 +2,13 @@
 import { computed, onMounted, ref } from "vue";
 
 import { getCalendar, type CalendarAggregate } from "../api";
+import DayDetail from "../components/DayDetail.vue";
 import MonthGrid from "../components/MonthGrid.vue";
 import { monthKey, shiftMonth, todayIso } from "../format";
 
 /**
  * 月历视图：月历聚合的唯一持有者（spec 决策 3），展开日期也在这里（决策 12）。
- * 本票只做只读网格；票 17 往第 8 列填 WeekMetric，票 18 往 MonthGrid 的 `expanded` 插槽里放 DayDetail。
+ * 展开行内容经 MonthGrid 的 `expanded` 插槽交给 DayDetail（按日期重建实例）。
  */
 
 const aggregate = ref<CalendarAggregate | null>(null);
@@ -113,7 +114,9 @@ onMounted(() => {
     :logged-dates="loggedDates"
     @select="select"
   >
-    <!-- 票 18 在此放 <template #expanded><DayDetail :date="expandedDate" /></template>；
-         本票不提供插槽内容，MonthGrid 就不会渲染那行 colspan 展开行。 -->
+    <!-- 展开行内容（跨 8 列的行由 MonthGrid 唯一渲染）；:key 保证换天重建详情实例 -->
+    <template #expanded>
+      <DayDetail v-if="expandedDate !== null" :key="expandedDate" :date="expandedDate" />
+    </template>
   </MonthGrid>
 </template>

@@ -64,3 +64,12 @@ export function dayOfMonth(isoDate: string): string {
   const day = Number(isoDate.slice(8, 10));
   return Number.isFinite(day) && day >= 1 ? String(day) : "";
 }
+
+/** 详情标题：「2026 年 10 月 13 日」（v1 `_day_detail.html` 的标题格式）；认不出则原样返回。 */
+export function dayTitle(isoDate: string): string {
+  const year = Number(isoDate.slice(0, 4));
+  const month = Number(isoDate.slice(5, 7));
+  const day = Number(isoDate.slice(8, 10));
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return isoDate;
+  return `${year} 年 ${month} 月 ${day} 日`;
+}
