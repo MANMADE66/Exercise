@@ -130,6 +130,37 @@ class DayAggregate(BaseModel):
     note: str = Field(default="", description="感受笔记；没有记录时为空串")
 
 
+# ---------- 计划条目写请求（SRS FR-6、HLD §9.1） ----------
+# 重量 / 组数 / 次数收**原始文本**：容错解析属于 service（FR-6.4），契约只声明「用户手写的东西」。
+# 若在这里标成 float / int，`"60kg"` 会被 Pydantic 直接 422 拦掉，正好违背「解析失败不报错」。
+
+MoveDirection = Literal["up", "down"]
+
+
+class PlanItemCreate(BaseModel):
+    """添加计划条目（FR-6.1）：动作名自动建入本人动作库，新条目置于当天末位。"""
+
+    exercise: str = Field(description="动作名，去首尾空白后不能为空")
+    weight: str | None = Field(default=None, description="重量原文本，如 60 / 60kg / 62,5")
+    sets: str | None = Field(default=None, description="组数原文本，如 4")
+    reps: str | None = Field(default=None, description="次数原文本，自由文本如 8-12")
+
+    @field_validator("exercise")
+    @classmethod
+    def _require_exercise(cls, value: str) -> str:
+        """空动作名 422 而不是静默丢掉这条输入（票 11 裁定，v1 是静默 no-op）。"""
+        normalized = value.strip()
+        if not normalized:
+            raise PydanticCustomError("exercise_required", "动作名不能为空")
+        return normalized
+
+
+class PlanItemMove(BaseModel):
+    """上下移动（FR-6.3）：已在边界（首个上移 / 末个下移）时静默成功。"""
+
+    direction: MoveDirection = Field(description="up 上移 / down 下移")
+
+
 class BodyMetricOut(BaseModel):
     """周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。"""
 

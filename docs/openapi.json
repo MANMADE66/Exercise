@@ -382,6 +382,76 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "PlanItemCreate": {
+        "description": "添加计划条目（FR-6.1）：动作名自动建入本人动作库，新条目置于当天末位。",
+        "properties": {
+          "exercise": {
+            "description": "动作名，去首尾空白后不能为空",
+            "title": "Exercise",
+            "type": "string"
+          },
+          "reps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "次数原文本，自由文本如 8-12",
+            "title": "Reps"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "组数原文本，如 4",
+            "title": "Sets"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "重量原文本，如 60 / 60kg / 62,5",
+            "title": "Weight"
+          }
+        },
+        "required": [
+          "exercise"
+        ],
+        "title": "PlanItemCreate",
+        "type": "object"
+      },
+      "PlanItemMove": {
+        "description": "上下移动（FR-6.3）：已在边界（首个上移 / 末个下移）时静默成功。",
+        "properties": {
+          "direction": {
+            "description": "up 上移 / down 下移",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Direction",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "title": "PlanItemMove",
+        "type": "object"
+      },
       "PlannedItemOut": {
         "description": "计划条目：动作只出名字（动作库按用户隔离且 (user_id, name) 唯一，名字即身份）。",
         "properties": {
@@ -727,6 +797,67 @@
         ]
       }
     },
+    "/days/{iso_date}/plan-items": {
+      "post": {
+        "description": "添加计划条目（FR-6.1）；动作名自动建入本人动作库，空动作名在契约层就已 422。",
+        "operationId": "create_plan_item_days__iso_date__plan_items_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "iso_date",
+            "required": true,
+            "schema": {
+              "title": "Iso Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanItemCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "日期格式非法，需 YYYY-MM-DD"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "添加计划条目",
+        "tags": [
+          "days"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health_health_get",
@@ -745,6 +876,118 @@
         "summary": "存活探针",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/plan-items/{plan_item_id}": {
+      "delete": {
+        "description": "删除计划条目（FR-6.2）：关联的实际条目保留，其 `planned_item_id` 置空。",
+        "operationId": "delete_plan_item_plan_items__plan_item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_item_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Item Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "资源不存在"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "删除计划条目",
+        "tags": [
+          "days"
+        ]
+      }
+    },
+    "/plan-items/{plan_item_id}/move": {
+      "post": {
+        "description": "上下移动（FR-6.3）：边界（首个上移 / 末个下移）静默成功。",
+        "operationId": "move_plan_item_plan_items__plan_item_id__move_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_item_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Item Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanItemMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "资源不存在"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "上下移动计划条目",
+        "tags": [
+          "days"
         ]
       }
     }

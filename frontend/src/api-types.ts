@@ -75,6 +75,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/days/{iso_date}/plan-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 添加计划条目
+         * @description 添加计划条目（FR-6.1）；动作名自动建入本人动作库，空动作名在契约层就已 422。
+         */
+        post: operations["create_plan_item_days__iso_date__plan_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -86,6 +106,46 @@ export interface paths {
         get: operations["health_health_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-items/{plan_item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 删除计划条目
+         * @description 删除计划条目（FR-6.2）：关联的实际条目保留，其 `planned_item_id` 置空。
+         */
+        delete: operations["delete_plan_item_plan_items__plan_item_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-items/{plan_item_id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 上下移动计划条目
+         * @description 上下移动（FR-6.3）：边界（首个上移 / 末个下移）静默成功。
+         */
+        post: operations["move_plan_item_plan_items__plan_item_id__move_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -316,6 +376,44 @@ export interface components {
             version: string;
         };
         /**
+         * PlanItemCreate
+         * @description 添加计划条目（FR-6.1）：动作名自动建入本人动作库，新条目置于当天末位。
+         */
+        PlanItemCreate: {
+            /**
+             * Exercise
+             * @description 动作名，去首尾空白后不能为空
+             */
+            exercise: string;
+            /**
+             * Reps
+             * @description 次数原文本，自由文本如 8-12
+             */
+            reps?: string | null;
+            /**
+             * Sets
+             * @description 组数原文本，如 4
+             */
+            sets?: string | null;
+            /**
+             * Weight
+             * @description 重量原文本，如 60 / 60kg / 62,5
+             */
+            weight?: string | null;
+        };
+        /**
+         * PlanItemMove
+         * @description 上下移动（FR-6.3）：已在边界（首个上移 / 末个下移）时静默成功。
+         */
+        PlanItemMove: {
+            /**
+             * Direction
+             * @description up 上移 / down 下移
+             * @enum {string}
+             */
+            direction: "up" | "down";
+        };
+        /**
          * PlannedItemOut
          * @description 计划条目：动作只出名字（动作库按用户隔离且 (user_id, name) 唯一，名字即身份）。
          */
@@ -543,6 +641,48 @@ export interface operations {
             };
         };
     };
+    create_plan_item_days__iso_date__plan_items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iso_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanItemCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 日期格式非法，需 YYYY-MM-DD */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -559,6 +699,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    delete_plan_item_plan_items__plan_item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 资源不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_plan_item_plan_items__plan_item_id__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanItemMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 资源不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

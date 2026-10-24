@@ -54,6 +54,7 @@ def create_app(config: Settings | None = None) -> FastAPI:
     application.include_router(auth.router)
     application.include_router(calendar.router)
     application.include_router(days.router)
+    application.include_router(days.plan_items_router)
     return application
 
 
