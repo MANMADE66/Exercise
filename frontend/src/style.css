@@ -1,10 +1,18 @@
+/* 视觉方向：A（浅色极简 · 大留白）。换方向只需要改下面这组令牌。 */
 :root {
-  --ink: #1d1d1b;
-  --muted: #6f6f68;
-  --line: #dcdcd4;
-  --accent: #2f6f4f;
-  --bg: #faf9f5;
-  color-scheme: light;
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --text: #111214;
+  --muted: #6f7480;
+  --hairline: #e8e8e6;
+  --accent: #111214;
+  --accent-soft: #f1f1ef;
+  --danger: #b4423a;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --gap: 20px;
+  --font: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Microsoft YaHei", monospace;
 }
 
 * {
@@ -14,156 +22,515 @@
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--ink);
-  font-family:
-    -apple-system, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-.shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.topbar {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.badge {
-  padding: 0.1rem 0.45rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.content {
-  flex: 1;
-  padding: 2rem 1.5rem;
-  max-width: 56rem;
-  width: 100%;
+.wrap {
+  max-width: 980px;
   margin: 0 auto;
+  padding: 44px 32px 80px;
 }
 
-.card {
-  border: 1px solid var(--line);
-  border-radius: 0.75rem;
-  padding: 1.25rem 1.5rem;
+h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+h3 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0 0 10px;
+  letter-spacing: 0.02em;
 }
 
-.status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+.sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 6px 0 28px;
 }
-
-.dot {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 999px;
-  background: var(--muted);
-}
-
-.dot[data-ok="true"] {
-  background: var(--accent);
-}
-
 .muted {
   color: var(--muted);
 }
-
-.error {
-  color: #b33;
-  margin-top: 0.75rem;
+.empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 6px 0;
 }
 
-button {
-  font: inherit;
-  padding: 0.35rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: 0.45rem;
-  background: transparent;
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: var(--accent);
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.nav {
+/* 顶栏 */
+.topbar {
   display: flex;
-  gap: 0.75rem;
-  margin-left: 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
 }
-
 .nav a {
   color: var(--muted);
   text-decoration: none;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.nav a:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.nav a + a {
+  margin-left: 6px;
 }
 
-.nav a.router-link-active {
-  color: var(--accent);
+/* 月历 */
+table.month {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+table.month th {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--hairline);
+}
+.day-cell {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+  height: 82px;
+}
+tr:last-child .day-cell {
+  border-bottom: 0;
+}
+.day-cell[data-date] {
+  cursor: pointer;
+}
+.day-cell[data-date]:hover {
+  background: #fafaf9;
+}
+.day-cell.is-selected {
+  background: var(--accent-soft);
+}
+.day-cell.is-rest .part {
+  color: var(--muted);
+}
+.day-cell.is-today .num {
   font-weight: 600;
 }
+.day-cell.is-today .num::after {
+  content: "今天";
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 0 6px;
+}
+.num {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.part {
+  margin-top: 2px;
+  font-size: 13px;
+}
+.week-metric {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+th.week-head {
+  width: 104px;
+}
+td.week-cell {
+  width: 104px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+}
+tr:last-child td.week-cell {
+  border-bottom: 0;
+}
+td.week-cell input {
+  width: 100%;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.day-cell.has-log::after {
+  content: "已记";
+  position: absolute; /* 位置由外层定位兜底，视觉上是一个小点 */
+}
+.day-cell {
+  position: relative;
+}
+.day-cell.has-log .num::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--text);
+  vertical-align: middle;
+}
 
+/* 展开的当天详情 */
+tr.day-detail > td {
+  padding: 0;
+  border-bottom: 1px solid var(--hairline);
+  background: #fcfcfb;
+}
+.day-detail-inner {
+  padding: 22px 22px 24px;
+}
+.day-detail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  margin-top: 16px;
+}
+.col-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin: 0 0 8px;
+  letter-spacing: 0.02em;
+}
+.col-planned .col-title {
+  color: var(--text);
+}
+
+ul.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+ul.items li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+ul.items li:last-child {
+  border-bottom: 0;
+}
+ul.items .numbers {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+ul.items .actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+ul.items .actions form {
+  margin: 0;
+}
+.col-actual ul.items li {
+  color: var(--muted);
+}
+.col-actual ul.items .numbers {
+  color: var(--text);
+}
+
+/* 表单 */
+form.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+input[type="text"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  min-width: 0;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--text);
+}
+input.w-name {
+  flex: 1 1 160px;
+}
+input.w-num {
+  width: 84px;
+}
+input.w-mid {
+  width: 96px;
+}
+input.w-note {
+  flex: 1 1 110px;
+  min-width: 90px;
+}
+ul.items .row-form {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1;
+}
+ul.items .row-form .name {
+  flex: 0 0 auto;
+}
+ul.items .row-form input {
+  padding: 2px 6px;
+  font-size: 13px;
+}
+textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 64px;
+}
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+button:hover {
+  background: var(--accent-soft);
+}
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+button.primary:hover {
+  opacity: 0.9;
+}
+button.link {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  padding: 2px 6px;
+  font-size: 12px;
+}
+button.link:hover {
+  color: var(--danger);
+  background: none;
+}
+
+/* 备注与提示 */
+.note-box {
+  margin-top: 20px;
+}
+.note-box form {
+  margin-top: 6px;
+}
+.inline-actions {
+  margin-top: 8px;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.flash {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 13px;
+}
+.flash.error {
+  color: var(--danger);
+  background: #fbf0ef;
+}
+
+/* 循环模板列表 */
+.tpl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tpl-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.tpl-list li:last-child {
+  border-bottom: 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 20px;
+}
+.tpl-day {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+.tpl-day .w-day {
+  flex: 0 0 64px;
+}
+
+/* ==========================================================================
+   v2 新增（骨架期残留，令牌全部换成上面的方向 A 组）
+   登录页 / 后端状态点 / 顶栏用户区 / 导航高亮 / 翻页按钮 —— v1 没有这些，
+   或 v1 是多页应用因而没有对应形态；类名只新增、不改上面任何一个。
+   ========================================================================== */
+
+/* 登录页（LoginView 自带 .card，这里只加窄栏与表单排布） */
 .auth-card {
   max-width: 24rem;
   margin: 0 auto;
 }
-
 .tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 8px;
+  margin-bottom: 16px;
 }
-
 .tabs button.active {
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
+  color: #fff;
 }
-
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 12px;
 }
-
 .auth-form label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.9rem;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
 }
-
+/* v1 的输入框规则挂的是 input[type="text"]，登录框没有 type 属性，故单列一条 */
 .auth-form input {
   font: inherit;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 0.45rem;
-  background: #fff;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  min-width: 0;
 }
-
 .auth-form input:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--text);
 }
 
+/* 后端状态点（BackendStatus）与各视图的独立错误提示（v1 只有 .flash.error） */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+.dot[data-ok="true"] {
+  background: var(--accent);
+}
+.error {
+  color: var(--danger);
+  margin: 8px 0 0;
+}
 .note {
-  font-size: 0.8rem;
+  font-size: 12px;
+  color: var(--muted);
   margin: 0;
+}
+
+/* 顶栏（TopBar）：v1 顶栏只有「标题 + 链接」，v2 多了用户名与登出 */
+.brand {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.topbar-main {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+.who {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+
+/* 导航高亮：v1 多页不需要，v2 单页需要指示当前路由 */
+.nav a.router-link-active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* 翻页按钮：v1 是 <a href="?month=">，v2 是同页动作，外观沿用 .nav 链接 */
+button.nav-step {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+button.nav-step:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+button.nav-step + button.nav-step {
+  margin-left: 6px;
 }
