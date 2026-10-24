@@ -1,6 +1,93 @@
 {
   "components": {
     "schemas": {
+      "ActualItemOut": {
+        "description": "实际条目；`planned_item_id` 为 null 表示计划外新增（FR-7.3）。",
+        "properties": {
+          "exercise": {
+            "description": "动作名",
+            "title": "Exercise",
+            "type": "string"
+          },
+          "id": {
+            "description": "实际条目 id（行内更新、删除用）",
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "该行备注",
+            "title": "Note"
+          },
+          "planned_item_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "对应的计划条目 id；计划外条目为 null",
+            "title": "Planned Item Id"
+          },
+          "position": {
+            "description": "当天顺序，从 0 起连续",
+            "title": "Position",
+            "type": "integer"
+          },
+          "reps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际次数，自由文本",
+            "title": "Reps"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际组数",
+            "title": "Sets"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际重量（kg）",
+            "title": "Weight Kg"
+          }
+        },
+        "required": [
+          "id",
+          "exercise",
+          "position"
+        ],
+        "title": "ActualItemOut",
+        "type": "object"
+      },
       "BodyMetricOut": {
         "description": "周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。",
         "properties": {
@@ -195,6 +282,72 @@
         "title": "Credentials",
         "type": "object"
       },
+      "DayAggregate": {
+        "description": "一天的全部数据（FR-5.1）。\n\n无记录的日期：`kind` / `title` 为 null、两个集合为空、`note` 为空串 —— 前端不需要区分\n「没排计划」与「空字段」，也绝不因为读一次就凭空多出一个 PlanDay（FR-5.2）。",
+        "properties": {
+          "actual_items": {
+            "description": "全部实际条目，按 position 升序",
+            "items": {
+              "$ref": "#/components/schemas/ActualItemOut"
+            },
+            "title": "Actual Items",
+            "type": "array"
+          },
+          "date": {
+            "description": "请求的日期（YYYY-MM-DD）",
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "train",
+                  "rest"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "训练日 / 休息日；当天没有 PlanDay 时为 null",
+            "title": "Kind"
+          },
+          "note": {
+            "default": "",
+            "description": "感受笔记；没有记录时为空串",
+            "title": "Note",
+            "type": "string"
+          },
+          "planned_items": {
+            "description": "全部计划条目，按 position 升序",
+            "items": {
+              "$ref": "#/components/schemas/PlannedItemOut"
+            },
+            "title": "Planned Items",
+            "type": "array"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "当天标题；当天没有 PlanDay 时为 null",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "title": "DayAggregate",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -227,6 +380,69 @@
           "version"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "PlannedItemOut": {
+        "description": "计划条目：动作只出名字（动作库按用户隔离且 (user_id, name) 唯一，名字即身份）。",
+        "properties": {
+          "exercise": {
+            "description": "动作名（已建入本人动作库）",
+            "title": "Exercise",
+            "type": "string"
+          },
+          "id": {
+            "description": "计划条目 id（删除、上下移用）",
+            "title": "Id",
+            "type": "integer"
+          },
+          "position": {
+            "description": "当天顺序，从 0 起连续",
+            "title": "Position",
+            "type": "integer"
+          },
+          "reps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "次数，自由文本（如 8-12）",
+            "title": "Reps"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "组数，解析失败为 null",
+            "title": "Sets"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "计划重量（kg），解析失败为 null",
+            "title": "Weight Kg"
+          }
+        },
+        "required": [
+          "id",
+          "exercise",
+          "position"
+        ],
+        "title": "PlannedItemOut",
         "type": "object"
       },
       "TokenResponse": {
@@ -457,6 +673,57 @@
         "summary": "月历聚合",
         "tags": [
           "calendar"
+        ]
+      }
+    },
+    "/days/{iso_date}": {
+      "get": {
+        "description": "读取整天聚合；当天没有任何记录时返回空结构，**不落库**（FR-5.2）。",
+        "operationId": "read_day_days__iso_date__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "iso_date",
+            "required": true,
+            "schema": {
+              "title": "Iso Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "日期格式非法，需 YYYY-MM-DD"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "日聚合",
+        "tags": [
+          "days"
         ]
       }
     },

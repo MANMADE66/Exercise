@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
-from app.parsing import parse_reps, parse_sets, parse_weight
+from app.parsing import parse_day, parse_reps, parse_sets, parse_weight
 
 
 def test_parse_weight_accepts_common_forms() -> None:
@@ -63,3 +65,20 @@ def test_parsers_never_raise(junk: str) -> None:
     assert parse_weight(junk) is None
     assert parse_sets(junk) is None
     assert parse_reps(junk) == junk.strip()
+
+
+def test_parse_day_accepts_iso_date() -> None:
+    assert parse_day("2026-01-05") == date(2026, 1, 5)
+    assert parse_day("2024-02-29") == date(2024, 2, 29)
+
+
+@pytest.mark.parametrize(
+    "junk", ["", "  ", "2026-13-01", "2026-02-30", "2026-1-5", "abc", "2026-01-05T00:00"]
+)
+def test_parse_day_returns_none_on_junk(junk: str) -> None:
+    """非法日期也走「不抛错」硬不变量；400 还是静默回退由调用方决定（票 09 注释）。"""
+    assert parse_day(junk) is None
+
+
+def test_parse_day_handles_none() -> None:
+    assert parse_day(None) is None

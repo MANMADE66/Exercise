@@ -22,8 +22,9 @@ USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 20
 PASSWORD_MIN_LENGTH = 6
 
-# `CalendarCell` 的字段名就叫 `date`，与 `datetime.date` 同名：在类体里 `date: date` 会让注解
-# 指向字段自身，Pydantic 直接报 unevaluable-type-annotation。故契约里的日期统一用此别名。
+# `CalendarCell` / `DayAggregate` 的字段名就叫 `date`，与 `datetime.date` 同名：在类体里
+# `date: date` 会让注解指向字段自身，Pydantic 直接报 unevaluable-type-annotation。故契约里的
+# 日期统一用此别名。
 IsoDate = date
 
 
@@ -71,6 +72,58 @@ class UserPublic(BaseModel):
 class TokenResponse(BaseModel):
     token: str = Field(description="JWT，前端存 localStorage 并在后续请求带 Bearer")
     user: UserPublic = Field(description="当前用户")
+
+
+# ---------- 日聚合（SRS FR-5.1、HLD §9.1） ----------
+# 形状一次定好：`GET /days/{iso_date}` 与全部日级写操作（FR-6.5 / FR-7.5 / FR-8.3）共用同一个
+# 响应模型，前端整体替换状态（D7），写完不再补发 GET。
+
+
+class PlannedItemOut(BaseModel):
+    """计划条目：动作只出名字（动作库按用户隔离且 (user_id, name) 唯一，名字即身份）。"""
+
+    id: int = Field(description="计划条目 id（删除、上下移用）")
+    exercise: str = Field(description="动作名（已建入本人动作库）")
+    weight_kg: float | None = Field(default=None, description="计划重量（kg），解析失败为 null")
+    sets: int | None = Field(default=None, description="组数，解析失败为 null")
+    reps: str | None = Field(default=None, description="次数，自由文本（如 8-12）")
+    position: int = Field(description="当天顺序，从 0 起连续")
+
+
+class ActualItemOut(BaseModel):
+    """实际条目；`planned_item_id` 为 null 表示计划外新增（FR-7.3）。"""
+
+    id: int = Field(description="实际条目 id（行内更新、删除用）")
+    planned_item_id: int | None = Field(
+        default=None, description="对应的计划条目 id；计划外条目为 null"
+    )
+    exercise: str = Field(description="动作名")
+    weight_kg: float | None = Field(default=None, description="实际重量（kg）")
+    sets: int | None = Field(default=None, description="实际组数")
+    reps: str | None = Field(default=None, description="实际次数，自由文本")
+    note: str | None = Field(default=None, description="该行备注")
+    position: int = Field(description="当天顺序，从 0 起连续")
+
+
+class DayAggregate(BaseModel):
+    """一天的全部数据（FR-5.1）。
+
+    无记录的日期：`kind` / `title` 为 null、两个集合为空、`note` 为空串 —— 前端不需要区分
+    「没排计划」与「空字段」，也绝不因为读一次就凭空多出一个 PlanDay（FR-5.2）。
+    """
+
+    date: IsoDate = Field(description="请求的日期（YYYY-MM-DD）")
+    kind: Literal["train", "rest"] | None = Field(
+        default=None, description="训练日 / 休息日；当天没有 PlanDay 时为 null"
+    )
+    title: str | None = Field(default=None, description="当天标题；当天没有 PlanDay 时为 null")
+    planned_items: list[PlannedItemOut] = Field(
+        default_factory=list, description="全部计划条目，按 position 升序"
+    )
+    actual_items: list[ActualItemOut] = Field(
+        default_factory=list, description="全部实际条目，按 position 升序"
+    )
+    note: str = Field(default="", description="感受笔记；没有记录时为空串")
 
 
 class BodyMetricOut(BaseModel):

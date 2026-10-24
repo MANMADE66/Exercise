@@ -55,6 +55,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/days/{iso_date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 日聚合
+         * @description 读取整天聚合；当天没有任何记录时返回空结构，**不落库**（FR-5.2）。
+         */
+        get: operations["read_day_days__iso_date__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -76,6 +96,52 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ActualItemOut
+         * @description 实际条目；`planned_item_id` 为 null 表示计划外新增（FR-7.3）。
+         */
+        ActualItemOut: {
+            /**
+             * Exercise
+             * @description 动作名
+             */
+            exercise: string;
+            /**
+             * Id
+             * @description 实际条目 id（行内更新、删除用）
+             */
+            id: number;
+            /**
+             * Note
+             * @description 该行备注
+             */
+            note?: string | null;
+            /**
+             * Planned Item Id
+             * @description 对应的计划条目 id；计划外条目为 null
+             */
+            planned_item_id?: number | null;
+            /**
+             * Position
+             * @description 当天顺序，从 0 起连续
+             */
+            position: number;
+            /**
+             * Reps
+             * @description 实际次数，自由文本
+             */
+            reps?: string | null;
+            /**
+             * Sets
+             * @description 实际组数
+             */
+            sets?: number | null;
+            /**
+             * Weight Kg
+             * @description 实际重量（kg）
+             */
+            weight_kg?: number | null;
+        };
         /**
          * BodyMetricOut
          * @description 周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。
@@ -189,6 +255,47 @@ export interface components {
              */
             username: string;
         };
+        /**
+         * DayAggregate
+         * @description 一天的全部数据（FR-5.1）。
+         *
+         *     无记录的日期：`kind` / `title` 为 null、两个集合为空、`note` 为空串 —— 前端不需要区分
+         *     「没排计划」与「空字段」，也绝不因为读一次就凭空多出一个 PlanDay（FR-5.2）。
+         */
+        DayAggregate: {
+            /**
+             * Actual Items
+             * @description 全部实际条目，按 position 升序
+             */
+            actual_items?: components["schemas"]["ActualItemOut"][];
+            /**
+             * Date
+             * Format: date
+             * @description 请求的日期（YYYY-MM-DD）
+             */
+            date: string;
+            /**
+             * Kind
+             * @description 训练日 / 休息日；当天没有 PlanDay 时为 null
+             */
+            kind?: ("train" | "rest") | null;
+            /**
+             * Note
+             * @description 感受笔记；没有记录时为空串
+             * @default
+             */
+            note: string;
+            /**
+             * Planned Items
+             * @description 全部计划条目，按 position 升序
+             */
+            planned_items?: components["schemas"]["PlannedItemOut"][];
+            /**
+             * Title
+             * @description 当天标题；当天没有 PlanDay 时为 null
+             */
+            title?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -207,6 +314,42 @@ export interface components {
              * @description API 版本号
              */
             version: string;
+        };
+        /**
+         * PlannedItemOut
+         * @description 计划条目：动作只出名字（动作库按用户隔离且 (user_id, name) 唯一，名字即身份）。
+         */
+        PlannedItemOut: {
+            /**
+             * Exercise
+             * @description 动作名（已建入本人动作库）
+             */
+            exercise: string;
+            /**
+             * Id
+             * @description 计划条目 id（删除、上下移用）
+             */
+            id: number;
+            /**
+             * Position
+             * @description 当天顺序，从 0 起连续
+             */
+            position: number;
+            /**
+             * Reps
+             * @description 次数，自由文本（如 8-12）
+             */
+            reps?: string | null;
+            /**
+             * Sets
+             * @description 组数，解析失败为 null
+             */
+            sets?: number | null;
+            /**
+             * Weight Kg
+             * @description 计划重量（kg），解析失败为 null
+             */
+            weight_kg?: number | null;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -350,6 +493,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CalendarAggregate"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_day_days__iso_date__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iso_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 日期格式非法，需 YYYY-MM-DD */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

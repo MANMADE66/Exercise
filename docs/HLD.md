@@ -139,9 +139,11 @@
 └─ README.md                    # dev / prod 双启动说明
 ```
 
-> **目标树说明（2026-10-24 校准，本轮更新到票 10）**：`services/days_service.py`、`template_service.py`、三个业务 router（days/templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/errors.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `services/isolation.py` · `services/auth_service.py` · `services/calendar_service.py`（月历网格 / `parse_month` 回退 / `logged_dates` / 周行与周体重） · `routers/health.py` · `routers/auth.py` · `routers/calendar.py`（`GET /calendar`）· 契约 `CalendarAggregate` / `CalendarCell` / `CalendarWeek` / `BodyMetricOut`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07/08/10）。
+> **目标树说明（2026-10-24 校准，本轮更新到票 09）**：`services/template_service.py`、两个业务 router（templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/errors.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `services/isolation.py` · `services/auth_service.py` · `services/calendar_service.py`（月历网格 / `parse_month` 回退 / `logged_dates` / 周行与周体重） · `services/days_service.py`（`aggregate_day` 日聚合 / `get_or_create_plan_day`） · `routers/health.py` · `routers/auth.py` · `routers/calendar.py`（`GET /calendar`）· `routers/days.py`（`GET /days/{iso_date}`）· 契约 `CalendarAggregate` / `CalendarCell` / `CalendarWeek` / `BodyMetricOut` / `DayAggregate` / `PlannedItemOut` / `ActualItemOut`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07/08/09/10）。
 
 > `week_start_for(day) = day - timedelta(days=day.weekday())` 定义在 `services/calendar_service.py`：周行读与票 15 的写入归一用**同一份**算法，不各写一遍。
+
+> `parse_day(raw) -> date | None` 是 `app/parsing.py` 的成员（v1 `app/days.py:parse_day` 上移）：容错解析统一「不抛错」，**400 还是静默回退由调用方决定** —— days 走 400、calendar 的 `?month=` 走回退，两套错误语义刻意不共用 helper（票 09/10 注释）。
 
 ### 5.2 数据结构要点
 

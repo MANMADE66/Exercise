@@ -39,6 +39,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q -p no:cacheprovider"
 
-# mutmut 依赖 os.fork，Windows 只能在 WSL 内跑；source_paths 待业务模块落地后补
+# mutmut 依赖 os.fork，Windows 只能在 WSL 内跑（本机无 WSL 发行版，门控暂未验证）；
+# 只变异后端业务逻辑（HLD §12.0）：容错解析与日聚合/position 维护
 [tool.mutmut]
-source_paths = ["app"]
+source_paths = ["app/parsing.py", "app/services/days_service.py"]
