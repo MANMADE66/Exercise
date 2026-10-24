@@ -21,12 +21,12 @@
 
 ## 前沿（2026-10-24 切票，业务域）
 
-雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 09 · 10 · 15**（无阻塞、无领取），11–14 卡在 09 后面：
+雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 09 · 15**（票 10 已闭环 `731e732`），11–14 卡在 09 后面：
 
 | 票 | 事项 | 阻塞 | 可动 |
 |---|---|---|---|
 | 09 | [日聚合读（`GET /days/{iso}` + `DayAggregate`）](issues/09-day-aggregate.md) | — | ✅ 前沿（首张取它） |
-| 10 | [月历聚合（`GET /calendar`）](issues/10-calendar-aggregate.md) | — | ✅ 前沿 |
+| 10 | [月历聚合（`GET /calendar`）](issues/10-calendar-aggregate.md) | — | ✅ 已落地 `731e732` |
 | 11 | [计划条目增删移（FR-6）](issues/11-plan-items.md) | 09 | ⛔ |
 | 12 | [实际记录与 prefill（FR-7）](issues/12-actual-items.md) | 09 | ⛔ |
 | 13 | [感受笔记（FR-8）](issues/13-day-note.md) | 09 | ⛔ |
@@ -58,6 +58,8 @@
 - 票 08（归属隔离，已落地 `3287232`）：`app/services/isolation.py` 是判断归属的唯一地方 —— `select_owned(model, user_id)` 供列表/聚合收窄；`find_plan_day` / `find_exercise` / `find_body_metric` 按业务键查、不存在回 `None`；`require_planned_item` / `require_actual_item` / `require_template` / `require_template_day` / `require_template_item` 按 id 取且**父链每一层都校验 user_id**（只信子表冗余列会漏掉「A 的条目挂到 B 的模板下」的脏行，测试用 `update().values(user_id=...)` 造这种行验证双方都 404）。404 用 `app/core/errors.py`（`NOT_FOUND_DETAIL` + `NotFoundError` + `create_app` 注册的全局处理器）而非每处 try/except：物理上只有一个文案出口，业务 router 连 catch 都不用写。`require_day_note` 故意不做（DayNote 1:1 挂 PlanDay，入口恒为 `PUT /days/{iso}/note`，按 id 的 helper 是死代码）。conftest 新增 `Actor` + `actor_a`/`actor_b`（直插 users + 签真 JWT，跳过 bcrypt）+ `Factories`（plan_day / planned_item / actual_item / template / template_day / template_item / body_metric / exercise，commit 后 HTTP 可见）。verify 全绿（**71 例**，契约零 diff）。[`issues/08-isolation.md`](issues/08-isolation.md)
 
 - 票 07（认证与会话，已落地 `c333e4f`）：`core/security.py`（bcrypt cost=12；JWT HS256，`sub` 必须是字符串否则 PyJWT 解码即报 InvalidSubjectError；坏/过期/缺声明一律解出 `None`）+ `core/deps.py`（`HTTPBearer(auto_error=False)`：缺 header 默认是 403，必须改成 401；三个失败分支收进 `_unauthorized()`，并导出 `CurrentUser`/`TokenPolicyDep` 给票 08）+ `services/auth_service.py`（票面只列 router，但硬不变量 1 要求写操作与业务判断在 service；并发注册撞唯一键回滚成同一 409 语义）+ `routers/auth.py`（只做 409/401 映射）。契约：`Credentials`（注册/登录共用）/`UserPublic`/`TokenResponse`；422 中文文案必须用 `PydanticCustomError`，`ValueError` 会被加 `Value error, ` 前缀。三处裁定：① 密码 >72 字节（bcrypt 5.x 硬上限，按字节不按字符）拦成 422 而非静默截断；② 登录用同一 `Credentials`，用户名 <3 字符回 422（FR-2.5 只约束「密码错 vs 用户不存在」）；③ 测试用 `add_api_route(include_in_schema=False)` 挂 `/_test/whoami` 探针，五种 401 走真实 HTTP 路径。前端 `api.ts` 增 `register`/`login`、`stores.ts` 的 `SessionUser` 换成 `components["schemas"]["UserPublic"]`、`LoginView` 解除提交禁用。顺带闭环票 02 遗留问题 3：`httpx 0.28.1` → `httpx2 2.16.0`（starlette testclient 优先 import httpx2），pytest 0 warning，HLD §12.1 与 research §9 已同步。[`issues/07-auth-session.md`](issues/07-auth-session.md)
+
+- 票 10（月历聚合，已落地 `731e732`）：`services/calendar_service.py` 与 v1 `app/calendar.py` 同义 —— `month_grid` 整周补齐（`[None]*first.weekday()` 前补 + 补到 7 的整数倍）、`parse_month` 非法/缺省静默回退当月（FR-4.2，与 days 的 400 是两套语义、刻意不收进同一 helper）、`logged_dates` = `PlanDay join ActualItem` + `distinct` 且 **join 也带 `user_id`**（A 的日历不得出现 B 的记录日）。契约 `CalendarAggregate{year, month, weeks[], logged_dates[]}` → `CalendarWeek{week_start, cells[7], metric}` → `CalendarCell{date, kind, title}` + `BodyMetricOut`（票 15 直接复用形状）。三处裁定：① 补齐位是 `null`、空格子不是 —— 当月某天无 PlanDay 时格子仍在、只是 kind/title 为 null，前端据此区分「不在本月」与「没排计划」；② `week_start` 契约收紧为非空（每行必有真实日期；跨月首行落在上一个月，如 2026-07 首行 = 2026-06-29），`week_start_for` 只此一份，票 15 的写入归一复用；③ 响应回生效的 `year`/`month`（回退后前端要基准算 prev/next），`today` 不进契约。踩坑：`CalendarCell.date` 字段名与类型同名会让 Pydantic 报 `unevaluable-type-annotation`，故 `schemas.py` 加模块别名 `IsoDate = date`。verify 全绿（79 例）。[`issues/10-calendar-aggregate.md`](issues/10-calendar-aggregate.md)
 
 ## Not yet specified
 
