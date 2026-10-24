@@ -78,8 +78,8 @@ fi
 step "oxlint --deny-warnings"
 (cd "$FRONTEND" && npx --no-install oxlint --deny-warnings src)
 
-step "oxfmt --check（.vue 暂不参与、api-types.ts 为生成物，正确性由 vue-tsc 承担）"
-(cd "$FRONTEND" && npx --no-install oxfmt --check src '!**/*.vue' '!src/api-types.ts')
+step "oxfmt --check（含 .vue，走内置 Prettier；api-types.ts 为生成物，排除）"
+(cd "$FRONTEND" && npx --no-install oxfmt --check src '!src/api-types.ts')
 
 step "vue-tsc --noEmit（TS strict + noUncheckedIndexedAccess）"
 (cd "$FRONTEND" && npx --no-install vue-tsc --noEmit -p tsconfig.json)

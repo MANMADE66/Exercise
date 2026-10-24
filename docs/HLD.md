@@ -103,7 +103,7 @@
 ├─ backend/
 │  ├─ app/                     # FastAPI 工程包
 │  │  ├─ main.py               # create_app 工厂、CORS(dev)、静态挂载与 SPA 兜底(prod)
-│  │  ├─ db.py                 # engine / SessionLocal / get_db、启动建库 + create_all + WAL
+│  │  ├─ db.py                 # create_db_engine / create_session_factory / get_db、密钥持久化；建库 + create_all + WAL + 每连接 PRAGMA foreign_keys=ON
 │  │  ├─ core/
 │  │  │  ├─ config.py          # 路径常量、环境变量（库路径/SECRET/token 有效期）
 │  │  │  ├─ security.py         # bcrypt 哈希与校验、JWT 编解码
@@ -116,7 +116,8 @@
 │  │  │  ├─ days_service.py     # get_or_create、position 维护、prefill 幂等、日聚合组装
 │  │  │  └─ template_service.py # 模板 CRUD、apply 逐日检查跳过
 │  │  └─ routers/
-│  │     ├─ auth.py · calendar.py · days.py · templates.py · metrics.py
+│  │     ├─ health.py          # 骨架期产物，保留作健康检查 / 前端探活
+│  │     └─ auth.py · calendar.py · days.py · templates.py · metrics.py
 │  ├─ data/                     # app.db、secret.key（gitignore）
 │  └─ tests/                    # conftest + 各域测试（§12）
 ├─ frontend/
@@ -136,6 +137,8 @@
 └─ README.md                    # dev / prod 双启动说明
 ```
 
+> **目标树说明（2026-10-24 校准）**：`core/security.py`、`core/deps.py`、`services/*`、五个业务 router 与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随对应执行票创建（自 `.scratch/training-log-v2/issues/07` 起）。已落地：`main.py` · `db.py` · `core/config.py` · `models.py` · `schemas.py` · `parsing.py` · `routers/health.py`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue`。
+
 ### 5.2 数据结构要点
 
 - 业务表全部带 `user_id` 外键，唯一键由「全局唯一」收紧为「(user_id, 原键)」：
@@ -147,7 +150,8 @@
 - actual_items 追加 **UNIQUE(plan_day_id, planned_item_id)**（prefill 幂等加固；planned_item_id 可空，计划外条目为 NULL）。
 - 级联约定：删除 plan_day 级联其 planned_items / actual_items / day_notes；删除 planned_item **不**级联 actual_item，仅置空 planned_item_id（历史保留，SRS FR-6.2）；删除 cycle_template 级联天/条目。
 - 模板不含重量（SRS FR-9.2）；apply 时仅复制骨架字段（exercise、sets、reps、position）。
-- 连接：`create_engine(URL.create("sqlite", database=<abs path>.as_posix()))`，`check_same_thread=False`，启动执行 `journal_mode=WAL` + `create_all()`。
+- 连接：`create_engine(URL.create("sqlite", database=<abs path>.as_posix()))`，`check_same_thread=False`，启动执行 `journal_mode=WAL` + `create_all()`，并对**每个连接**开 `PRAGMA foreign_keys=ON`（SQLite 默认关，不开则 CASCADE / SET NULL 静默失效）。
+- 引擎与会话工厂由 `create_app` 的 lifespan 创建并挂 `app.state`，不在 import 期碰磁盘——否则 `scripts/export_openapi.py` 只为取契约也会顺手建库、生成密钥（票 04 裁定）。
 
 ---
 
@@ -254,7 +258,7 @@ SECRET：首启随机生成写入 backend/data/secret.key（重启不失效）�
 - **类型即护栏，而非补丁**：前端 TS strict 保证代理重写的 UI 代码在编译期就被 Pydantic/TS 双重约束——而不是等到 PR 人工审查时才发现。
 - **契约变更闭环**：Pydantic → openapi.json → api-types.ts 是单向机器流水线；禁止手写前端 schema——TS 是编译期关，不是测试替代，D10 维持不变。
 - **依赖必须锁定**：Python lockfile + package-lock.json 入库；代理生成环境（venv 重建、CI 重建）用锁文件精确重放，不追求最新但不接受漂移。精确版号见 §12.1。
-- **oxfmt 风险管理**：`oxfmt@0.74.0` 下 `.vue` 由**内置 Prettier** 处理（非 native 引擎），因此保留「verify.sh 只格式化 `.ts/.js`」的保守选择属于**策略**而非能力限制；`.vue` 若需格式化，用同一 oxfmt 跑（输出与 Prettier 同源）或编辑器侧 Prettier 3.9.10，二者不产生两套风格。**默认 `printWidth=100`（Prettier 为 80）且不读 `package.json` 的 `prettier` 字段** → 必须提交 `.oxfmtrc.json` 显式对齐。oxc 只为 oxlint 发布过 semver 政策（formatter 无），minor 升版可重排全树：锁精确版本，升级后 `git diff --stat` 突增即回退。
+- **oxfmt 风险管理**：`oxfmt@0.74.0` 下 `.vue` 由**内置 Prettier** 处理（非 native 引擎）；2026-10-24 复验 5 个 `.vue` 全部零 diff，故 verify.sh 已把 `.vue` 纳入主链，原「只格式化 `.ts/.js`」的保守策略作废。编辑器侧 Prettier 3.9.10 与本工具同源，不产生两套风格。**默认 `printWidth=100`（Prettier 为 80）且不读 `package.json` 的 `prettier` 字段** → 必须提交 `.oxfmtrc.json` 显式对齐。oxc 只为 oxlint 发布过 semver 政策（formatter 无），minor 升版可重排全树：锁精确版本，升级后 `git diff --stat` 突增即回退。
 | 工具 | 命令 | 覆盖范围 |
 |---|---|---|
 | ruff check | `ruff check backend/` | 后端静态检查（import 顺序、未用变量、语法类错误） |
@@ -262,7 +266,7 @@ SECRET：首启随机生成写入 backend/data/secret.key（重启不失效）�
 | mypy strict | `mypy backend/` | 后端类型检查（FastAPI 的 Pydantic/Depends 标注白捡的 correctness） |
 | vue-tsc | `vue-tsc --noEmit -p frontend` | 前端 TS strict 编译期类型检查——前端的"编译测试"，`vite build` 前必须通过（D13） |
 | oxlint | `oxlint --deny-warnings frontend/src` | 前端静态检查（兼容 ESLint）。`.vue` **只 lint `<script>` 块**，且 `no-unused-vars` 在 SFC 内不报（同类死代码写在 `.ts` 里才报）→ `.vue` 不靠它兜底。**必须带 `--deny-warnings`**：默认 warning 不导致非零退出 |
-| oxfmt | `oxfmt --check frontend/src '!**/*.vue'` | 前端格式化校验。**oxfmt 无 `--exclude` 参数**（写了会 `Error: --exclude is not expected in this context` 并退出 1）；排除只能用 `!` 前缀 glob 或 `--ignore-path`。锁版本，输出漂移即回退 |
+| oxfmt | `oxfmt --check frontend/src '!src/api-types.ts'` | 前端格式化校验，**含 `.vue`**（走内置 Prettier）。**oxfmt 无 `--exclude` 参数**（写了会 `Error: --exclude is not expected in this context` 并退出 1）；排除只能用 `!` 前缀 glob 或 `--ignore-path`。生成物 `api-types.ts` 仍排除（否则门禁会要求改生成文件）。锁版本，输出漂移即回退 |
 | 类型契约 | 后端导出 `docs/openapi.json` → openapi-typescript 生成 `api-types.ts` | 前后端类型机器同源，禁止手写前端 schema；契约变更时 vue-tsc 自动指出全部受影响调用点（§10.2、D13） |
 | pytest | `pytest backend/tests -q` | 功能回归（§12 覆盖矩阵） |
 | mutmut | `mutmut run`（目标配在 `[tool.mutmut] source_paths`） | 变异测试，仅后端业务逻辑：`app/parsing.py` 与 `app/services/days_service.py`（parsing 容错、position 维护）；按 D10 前端无测试套件，不加 Stryker-js。3.6+ 已把 `paths_to_mutate` 更名为 `source_paths`；**依赖 `os.fork`，Windows 须在 WSL 内跑** → verify.sh 需门控此关 |
