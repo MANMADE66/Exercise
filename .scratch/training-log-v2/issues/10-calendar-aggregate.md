@@ -37,3 +37,28 @@ Claimed by: pi（2026-10-24）
 - **类型坑（记一笔）**：`CalendarCell` 的字段就叫 `date`，类体里写 `date: date` 会让注解指向字段自身，Pydantic 报 `unevaluable-type-annotation`；`schemas.py` 因此加了模块级别名 `IsoDate = date`，日历三个模型的日期字段统一用它。
 - **测试** `backend/tests/test_calendar.py`（9 例）：非法/缺省 month 回退当月、网格补 null（2026-02 首行补 6 格 / 末行补 1 格）、格子 kind/title、`logged_dates` 判据（只有计划日不算、多条实际条目只出现一次、月外记录不进集合）、周一起点 + metric 挂对行（含跨月首行）、A/B 隔离（B 的计划日/记录日/周体重都不出现，反向亦然）、无 token 401。
 - verify 全绿（**79 例**，契约重生成零手改）。过程中发现票 09 的 `days_service.py` / `routers/days.py` / `test_days.py` 已在同一工作树里被并行改动（其 `schemas.py` 半边未落，mypy/ruff 会红），本票验证时把这三份未跟踪文件临时移出后再跑 verify、随即原样移回（md5 校验一致），提交只含票 10 的路径，未触碰票 09 的在途文件。
+
+### 票 09 落地后的回看（`099e8ef`）
+
+票 09 合入（`2be4f8b`）后逐行对了两票的产物：**月历在功能上不依赖日聚合的任何返回内容** ——
+FR-4.3 规定月历只出概要、日详情由 FR-5 另发 `GET /days/{iso}`，`CalendarCell{date,kind,title}`
+与 `DayAggregate{date,kind,title,planned_items,actual_items,note}` 是两套形状（前者还要能表达
+补齐位的 `null` 格，后者表达不了）；`aggregate_day()` 也不该被月历复用（5–6 周 × 7 天逐日聚合
+就是 N+1）。09 反而复用了我这票先定的 `IsoDate` 别名，说明共享点落在类型层而非响应形状。
+
+顺着这次对照做了三处去重（契约零 diff，`openapi.json` / `api-types.ts` 不变）：
+
+1. **`DayKind` 别名**：`kind` 的两值原本在 10 与 09 各写一遍收窄（`cast(Literal[...])` vs
+   `# type: ignore[arg-type]`）。收进 `schemas.DayKind`，`DayAggregate` 与 `CalendarCell` 共用，
+   两个 service 都用 `cast(DayKind, plan_day.kind)` —— `type: ignore` 会把脏值静默放行，
+   `cast` 至少指向契约里那一个别名。
+2. **`parse_month` 改走 `parsing.parse_day`**：09 把 `parse_day` 提到 `parsing.py`（硬不变量 2），
+   于是本票不再自带一份 `date.fromisoformat` 的 try/except —— 「认不出」的判定全库只剩一处，
+   「回退当月」的错误语义仍留在 `calendar_service`，与 days 的「非法 → 400」照旧不共用。
+3. **测试改用 `CalendarAggregate.model_validate(response.json())`**：与 `test_days.py` 同一手法，
+   断言打的是生成契约的字段名（D13），而不是手抄的 `dict[str, Any]` 键；顺带把 `dict[str, Any]`
+   下标（mypy 会退化成 `Any`）换成属性访问。
+
+未动的一处（跨票，留给后续）：`DbSession = Annotated[Session, Depends(get_db)]` 现在在
+`routers/auth.py` 与 `routers/days.py` 各定义一次，本票的 `routers/calendar.py` 内联第三次 ——
+应该搬进 `core/deps.py` 一处导出。它不属任何业务票的语义，故本票只记账不改。
