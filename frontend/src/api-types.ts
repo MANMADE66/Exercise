@@ -196,6 +196,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/metrics/{week_start}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 保存周体重
+         * @description 按 `(user_id, 周起点)` upsert（FR-10.1）：路径日期归一到周一，同周再 PUT 只更新那一行。
+         */
+        put: operations["save_metric_metrics__week_start__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/plan-items/{plan_item_id}": {
         parameters: {
             query?: never;
@@ -376,6 +396,32 @@ export interface components {
              * @description 体重（公斤）
              */
             weight_kg: number;
+        };
+        /**
+         * BodyMetricUpdate
+         * @description 周体重 upsert（FR-10.1）：PUT 是**整体替换**，没传的 `body_fat` / `note` 写成 NULL。
+         *
+         *     三个字段都收**原始文本**（与计划条目的 weight 同构）：v1 用 `parse_weight` 容错，`72kg`
+         *     与 `72,5` 都算合法输入。区别在于**体重非法是错误**：`parse_weight` 给 None 即 422（FR-10.2），
+         *     而这条校验放在 validator 上 —— 请求进不到 handler，库自然零变化。`body_fat` 可选且非法
+         *     静默为 NULL（v1 一致），故不在这里拦。
+         */
+        BodyMetricUpdate: {
+            /**
+             * Body Fat
+             * @description 体脂率原文本；认不出即 null
+             */
+            body_fat?: string | null;
+            /**
+             * Note
+             * @description 备注；空串或纯空白视为未填
+             */
+            note?: string | null;
+            /**
+             * Weight
+             * @description 体重原文本，如 72 / 72.5kg / 72,5；解析不出正数则 422
+             */
+            weight: string;
         };
         /**
          * CalendarAggregate
@@ -1064,6 +1110,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
+            };
+        };
+    };
+    save_metric_metrics__week_start__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                week_start: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BodyMetricUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyMetricOut"];
+                };
+            };
+            /** @description 日期格式非法，需 YYYY-MM-DD */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 体重需为大于 0 的数字（如 72 或 72.5kg） */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -116,6 +116,7 @@
 │  │  │  ├─ isolation.py      # 归属隔离唯一入口：select_owned / require_*（父链）/ find_*
 │  │  │  ├─ calendar_service.py # 月历网格、logged_dates、周归属与周聚合行
 │  │  │  ├─ days_service.py     # get_or_create、position 维护、prefill 幂等、日聚合组装
+│  │  │  ├─ metrics_service.py  # 周体重 upsert：week_start 归一、体重非法不落库（读在 calendar_service）
 │  │  │  └─ template_service.py # 模板 CRUD、apply 逐日检查跳过
 │  │  └─ routers/
 │  │     ├─ health.py          # 骨架期产物，保留作健康检查 / 前端探活
@@ -139,9 +140,9 @@
 └─ README.md                    # dev / prod 双启动说明
 ```
 
-> **目标树说明（2026-10-24 校准，本轮更新到票 13）**：`services/template_service.py`、两个业务 router（templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/errors.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `services/isolation.py` · `services/auth_service.py` · `services/calendar_service.py`（月历网格 / `parse_month` 回退 / `logged_dates` / 周行与周体重） · `services/days_service.py`（`aggregate_day` 日聚合 / `get_or_create_plan_day` / `get_or_create_exercise` / 计划条目 `add`·`delete`·`move` / 实际条目 `prefill`·`add`·`update`·`delete` / 感受笔记 `save_day_note`） · `routers/health.py` · `routers/auth.py` · `routers/calendar.py`（`GET /calendar`）· `routers/days.py`（`GET /days/{iso_date}` + `/days/{iso_date}/plan-items` + `/plan-items/{id}` 与 `/plan-items/{id}/move` + `/days/{iso_date}/actual/prefill` + `/days/{iso_date}/actual-items` + `PATCH`/`DELETE /actual-items/{id}` + `PUT /days/{iso_date}/note`（笔记端点接在日期前缀 `router` 上，不另开 `APIRouter`），三个 `APIRouter` 同一模块三个前缀）· 契约 `CalendarAggregate` / `CalendarCell` / `CalendarWeek` / `BodyMetricOut` / `DayAggregate` / `PlannedItemOut` / `ActualItemOut` / `PlanItemCreate` / `PlanItemMove` / `ActualItemCreate` / `ActualItemUpdate` / `DayNoteUpdate`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07/08/09/10/11/12/13）。
+> **目标树说明（2026-10-24 校准，本轮更新到票 15）**：`services/template_service.py`、`routers/templates.py` 与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/errors.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `services/isolation.py` · `services/auth_service.py` · `services/calendar_service.py`（月历网格 / `parse_month` 回退 / `logged_dates` / 周行与周体重） · `services/days_service.py`（`aggregate_day` 日聚合 / `get_or_create_plan_day` / `get_or_create_exercise` / 计划条目 `add`·`delete`·`move` / 实际条目 `prefill`·`add`·`update`·`delete` / 感受笔记 `save_day_note`） · `services/metrics_service.py`（周体重 `upsert_week_metric`：`week_start` 服务端归一 / 非法体重在契约层就 422 不落库 / 可选字段容错 / 同周并发插撞键回滚重查） · `routers/health.py` · `routers/auth.py` · `routers/calendar.py`（`GET /calendar`）· `routers/days.py`（`GET /days/{iso_date}` + `/days/{iso_date}/plan-items` + `/plan-items/{id}` 与 `/plan-items/{id}/move` + `/days/{iso_date}/actual/prefill` + `/days/{iso_date}/actual-items` + `PATCH`/`DELETE /actual-items/{id}` + `PUT /days/{iso_date}/note`（笔记端点接在日期前缀 `router` 上，不另开 `APIRouter`），三个 `APIRouter` 同一模块三个前缀）· `routers/metrics.py`（`PUT /metrics/{week_start}`）· 契约 `CalendarAggregate` / `CalendarCell` / `CalendarWeek` / `BodyMetricOut` / `BodyMetricUpdate` / `DayAggregate` / `PlannedItemOut` / `ActualItemOut` / `PlanItemCreate` / `PlanItemMove` / `ActualItemCreate` / `ActualItemUpdate` / `DayNoteUpdate`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07/08/09/10/11/12/13/15）。
 
-> `week_start_for(day) = day - timedelta(days=day.weekday())` 定义在 `services/calendar_service.py`：周行读与票 15 的写入归一用**同一份**算法，不各写一遍。
+> `week_start_for(day) = day - timedelta(days=day.weekday())` 定义在 `services/calendar_service.py`：周行读与票 15 的写入归一用**同一份**算法，不各写一遍。`metric_out(metric)` 同在此文件：BodyMetric 行 → `BodyMetricOut` 的唯一映射（月历周行与 `PUT /metrics/{week_start}` 的返回值共用，票 15 抽出来）。
 
 > `parse_day(raw) -> date | None` 是 `app/parsing.py` 的成员（v1 `app/days.py:parse_day` 上移）：容错解析统一「不抛错」，**400 还是静默回退由调用方决定** —— days 走 400、calendar 的 `?month=` 走回退，两套错误语义刻意不共用 helper（票 09/10 注释）。
 
@@ -220,6 +221,8 @@ SECRET：首启随机生成写入 backend/data/secret.key（重启不失效）�
 | PUT /metrics/{week_start} | {weight(必填合法), body_fat?, note?} | 200 该周 metric；weight 非法 422 | FR-10 |
 
 所有 /days 与 plan-item/actual-item 端点在写操作完成后返回**新鲜日聚合**（D7 契约，前端整体替换，不再发 GET）。
+
+`PUT /metrics/{week_start}` 的路径参数是「该周任意一天」，服务端归一到周一再 upsert（键恒为周一），返回该周 metric —— 不返回月历聚合，写周体重只动一行（票 15）。
 
 ### 9.2 错误码约定
 

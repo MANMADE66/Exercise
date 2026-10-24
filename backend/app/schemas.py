@@ -13,10 +13,11 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
 from app.core.security import BCRYPT_MAX_PASSWORD_BYTES, password_too_long
+from app.parsing import parse_weight
 
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 20
@@ -213,6 +214,13 @@ class DayNoteUpdate(BaseModel):
     text: str = Field(description="感受原文；空串合法，含义为清空（不删 DayNote 行）")
 
 
+# ---------- 周体重（SRS FR-10、HLD §9.1） ----------
+
+# FR-10.2 的「可展示的错误」：前端 `api.ts` 会把 422 数组里的 msg 拼成串直接显示，故这里就是
+# 用户看到的那句话，而不是给开发者看的字段名。
+WEIGHT_INVALID_MESSAGE = "体重需为大于 0 的数字（如 72 或 72.5kg）"
+
+
 class BodyMetricOut(BaseModel):
     """周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。"""
 
@@ -220,6 +228,27 @@ class BodyMetricOut(BaseModel):
     weight_kg: float = Field(description="体重（公斤）")
     body_fat_pct: float | None = Field(default=None, description="体脂率（百分比）")
     note: str | None = Field(default=None, description="备注")
+
+
+class BodyMetricUpdate(BaseModel):
+    """周体重 upsert（FR-10.1）：PUT 是**整体替换**，没传的 `body_fat` / `note` 写成 NULL。
+
+    三个字段都收**原始文本**（与计划条目的 weight 同构）：v1 用 `parse_weight` 容错，`72kg`
+    与 `72,5` 都算合法输入。区别在于**体重非法是错误**：`parse_weight` 给 None 即 422（FR-10.2），
+    而这条校验放在 validator 上 —— 请求进不到 handler，库自然零变化。`body_fat` 可选且非法
+    静默为 NULL（v1 一致），故不在这里拦。
+    """
+
+    weight: str = Field(description="体重原文本，如 72 / 72.5kg / 72,5；解析不出正数则 422")
+    body_fat: str | None = Field(default=None, description="体脂率原文本；认不出即 null")
+    note: str | None = Field(default=None, description="备注；空串或纯空白视为未填")
+
+    @field_validator("weight")
+    @classmethod
+    def _require_positive_weight(cls, value: str) -> str:
+        if parse_weight(value) is None:
+            raise PydanticCustomError("weight_invalid", WEIGHT_INVALID_MESSAGE)
+        return value
 
 
 class CalendarCell(BaseModel):
@@ -250,4 +279,104 @@ class CalendarAggregate(BaseModel):
     weeks: list[CalendarWeek] = Field(description="按周排列的网格，首行不一定是当月 1 日")
     logged_dates: list[IsoDate] = Field(
         description="存在实际条目的日期集合（升序；不是「存在计划日」的日期）"
+    )
+
+
+# ---------- 循环模板（SRS FR-9、HLD §9.1） ----------
+# 模板是「骨架」：只有 kind / title / 动作名（模板不含重量，FR-9.2）。`sets` / `reps` 两列在
+# 表里是 v1 遗留（模板侧恒为 NULL），刻意不出现在契约里 —— 暴露一个永远为 null 的字段只会让前端
+# 长出无效输入框。模板日与模板条目都没有 id：没有任何端点按它们定位（只有整模板的删/apply）。
+
+
+class TemplateItemOut(BaseModel):
+    """模板条目：只有动作名与顺序（模板不含重量，SRS FR-9.2）。"""
+
+    exercise: str = Field(description="动作名（已建入本人动作库）")
+    position: int = Field(description="当天顺序，从 0 起连续")
+
+
+class TemplateDayOut(BaseModel):
+    """模板里的一天：`day_index` 从 0 起，apply 时按它偏移起始日。"""
+
+    day_index: int = Field(description="模板内序号，从 0 起；apply 时对应 起始日 + day_index")
+    kind: DayKind = Field(description="训练日 / 休息日")
+    title: str | None = Field(default=None, description="当天标题；没填就是 null")
+    items: list[TemplateItemOut] = Field(
+        default_factory=list, description="当天的动作，按 position 升序"
+    )
+
+
+class TemplateAggregate(BaseModel):
+    """一个循环模板及其逐日骨架（FR-9.1）；`GET /templates` 返回它的数组。"""
+
+    id: int = Field(description="模板 id（删除、apply 用）")
+    name: str = Field(description="模板名；空名创建时由服务端补「未命名循环」")
+    length_days: int = Field(description="循环长度 1–12（非法回退 8，超界静默截断 12）")
+    days: list[TemplateDayOut] = Field(
+        default_factory=list, description="逐日骨架，按 day_index 升序"
+    )
+
+
+class TemplateItemIn(BaseModel):
+    """创建模板时的条目：只收动作名。
+
+    动作名**不在这里校验非空**（与计划条目 `_ExerciseNamed` 相反）：v1 的输入是一行一个动作名，
+    空行被忽略；JSON 形状下与之对应的就是「strip 后为空的动作名被跳过」，归 service 处理。
+    """
+
+    exercise: str = Field(description="动作名；去首尾空白后为空则整条忽略")
+
+
+class TemplateDayIn(BaseModel):
+    """创建模板时的一天。
+
+    `kind` 收**裸 str** 而不是 `DayKind`：FR-9.2 的规则是「非 `rest` 一律 `train`」（v1 原样），
+    标成 `Literal` 会把填错的 kind 变成 422 整单拒绝 —— 与「静默归一」语义正好相反。规则落在
+    service，与 `length_days` 的「非法回退」同一取向。
+    """
+
+    kind: str = Field(default="train", description="rest 为休息日，其余一律按训练日处理")
+    title: str | None = Field(default=None, description="当天标题；去首尾空白后为空即无标题")
+    items: list[TemplateItemIn] = Field(default_factory=list, description="当天的动作，按数组顺序")
+
+
+class TemplateCreate(BaseModel):
+    """创建模板（FR-9.2）。
+
+    `length_days` 收**原始文本**：标成 `int` 会让 `"abc"` / `"8天"` 在 Pydantic 就被 422 拦掉，
+    而 FR-9.2 要的是「非法回退 8、超界截断 12、不报错」。`coerce_numbers_to_str` 让前端顺手传
+    数字也照收（都归一成文本再走 `parse_sets`）。
+
+    `days` 按数组下标对应 `day_index`：长度超过 `length_days` 的多余天被忽略（v1 只读
+    `range(length)` 内的表单字段），不足的由服务端补默认训练日。
+    """
+
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+    name: str | None = Field(default=None, description="模板名；去首尾空白后为空则用「未命名循环」")
+    length_days: str | None = Field(
+        default=None, description="循环长度原文本；非法回退 8，超界截断 12"
+    )
+    days: list[TemplateDayIn] = Field(
+        default_factory=list, description="逐日骨架，下标即 day_index；不足部分补默认训练日"
+    )
+
+
+class TemplateApplyRequest(BaseModel):
+    """应用模板（FR-9.3）。
+
+    `start` 收**原始文本**：格式非法要走 400（HLD §9.2「日期格式非法」），标成 `date` 会变成
+    Pydantic 原生的 422，与错误码约定不符（与 `GET /days/{iso_date}` 同一手法）。
+    """
+
+    start: str = Field(description="起始日 YYYY-MM-DD；从该日起按 day_index 逐日铺排")
+
+
+class TemplateApplyResult(BaseModel):
+    """铺排结果：新建 / 跳过的计数与跳过的日期（FR-9.3，前端据此提示）。"""
+
+    created: int = Field(description="新建的计划日数量")
+    skipped: int = Field(description="因当天已有计划日而跳过的数量")
+    skipped_dates: list[IsoDate] = Field(
+        default_factory=list, description="被跳过的日期（升序，原计划日一个字节都没动）"
     )

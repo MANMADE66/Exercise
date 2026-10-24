@@ -252,6 +252,45 @@
         "title": "BodyMetricOut",
         "type": "object"
       },
+      "BodyMetricUpdate": {
+        "description": "周体重 upsert（FR-10.1）：PUT 是**整体替换**，没传的 `body_fat` / `note` 写成 NULL。\n\n三个字段都收**原始文本**（与计划条目的 weight 同构）：v1 用 `parse_weight` 容错，`72kg`\n与 `72,5` 都算合法输入。区别在于**体重非法是错误**：`parse_weight` 给 None 即 422（FR-10.2），\n而这条校验放在 validator 上 —— 请求进不到 handler，库自然零变化。`body_fat` 可选且非法\n静默为 NULL（v1 一致），故不在这里拦。",
+        "properties": {
+          "body_fat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "体脂率原文本；认不出即 null",
+            "title": "Body Fat"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "备注；空串或纯空白视为未填",
+            "title": "Note"
+          },
+          "weight": {
+            "description": "体重原文本，如 72 / 72.5kg / 72,5；解析不出正数则 422",
+            "title": "Weight",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weight"
+        ],
+        "title": "BodyMetricUpdate",
+        "type": "object"
+      },
       "CalendarAggregate": {
         "description": "月历聚合（SRS FR-4）：整周网格 + 概要 + 已记录日期 + 周体重。",
         "properties": {
@@ -1292,6 +1331,60 @@
         "summary": "存活探针",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/metrics/{week_start}": {
+      "put": {
+        "description": "按 `(user_id, 周起点)` upsert（FR-10.1）：路径日期归一到周一，同周再 PUT 只更新那一行。",
+        "operationId": "save_metric_metrics__week_start__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week_start",
+            "required": true,
+            "schema": {
+              "title": "Week Start",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BodyMetricUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyMetricOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "日期格式非法，需 YYYY-MM-DD"
+          },
+          "422": {
+            "description": "体重需为大于 0 的数字（如 72 或 72.5kg）"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "保存周体重",
+        "tags": [
+          "metrics"
         ]
       }
     },

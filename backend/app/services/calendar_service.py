@@ -54,6 +54,16 @@ def week_start_for(day: date) -> date:
     return day - timedelta(days=day.weekday())
 
 
+def metric_out(metric: BodyMetric) -> BodyMetricOut:
+    """BodyMetric 行 → 契约形状（月历周行与票 15 的 upsert 返回值共用这一份映射）。"""
+    return BodyMetricOut(
+        week_start=metric.week_start,
+        weight_kg=metric.weight_kg,
+        body_fat_pct=metric.body_fat_pct,
+        note=metric.note,
+    )
+
+
 def calendar_month(db: Session, *, user_id: int, month: str | None) -> CalendarAggregate:
     """组装月历聚合；`month` 非法或缺失时静默回退当月。"""
     year, month_num = parse_month(month)
@@ -117,14 +127,7 @@ def calendar_month(db: Session, *, user_id: int, month: str | None) -> CalendarA
             CalendarWeek(
                 week_start=week_start,
                 cells=cells,
-                metric=None
-                if metric is None
-                else BodyMetricOut(
-                    week_start=metric.week_start,
-                    weight_kg=metric.weight_kg,
-                    body_fat_pct=metric.body_fat_pct,
-                    note=metric.note,
-                ),
+                metric=None if metric is None else metric_out(metric),
             )
         )
 
