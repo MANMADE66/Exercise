@@ -16,11 +16,12 @@ routers 只把 `user_id` 传进来，不碰过滤条件。
 from __future__ import annotations
 
 from datetime import date
+from typing import cast
 
 from sqlalchemy.orm import Session
 
 from app.models import ActualItem, DayNote, Exercise, PlanDay, PlannedItem
-from app.schemas import ActualItemOut, DayAggregate, PlannedItemOut
+from app.schemas import ActualItemOut, DayAggregate, DayKind, PlannedItemOut
 from app.services.isolation import find_plan_day, select_owned
 
 DEFAULT_KIND = "train"
@@ -40,7 +41,7 @@ def aggregate_day(db: Session, *, user_id: int, day: date) -> DayAggregate:
         )
     return DayAggregate(
         date=plan_day.date,
-        kind=plan_day.kind,  # type: ignore[arg-type]
+        kind=cast(DayKind, plan_day.kind),
         title=plan_day.title,
         planned_items=_planned_items(db, user_id=user_id, plan_day_id=plan_day.id),
         actual_items=_actual_items(db, user_id=user_id, plan_day_id=plan_day.id),

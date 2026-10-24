@@ -27,6 +27,10 @@ PASSWORD_MIN_LENGTH = 6
 # 日期统一用此别名。
 IsoDate = date
 
+# 计划日类型只有两值（models 默认 `train`）。日聚合与月历都暴露它，故单源在契约层：两个 service
+# 把 ORM 的裸 `str` 收窄时指向同一别名，而不是一处 `cast` 一处 `type: ignore`。
+DayKind = Literal["train", "rest"]
+
 
 class HealthResponse(BaseModel):
     status: Literal["ok"] = Field(description="服务状态")
@@ -113,7 +117,7 @@ class DayAggregate(BaseModel):
     """
 
     date: IsoDate = Field(description="请求的日期（YYYY-MM-DD）")
-    kind: Literal["train", "rest"] | None = Field(
+    kind: DayKind | None = Field(
         default=None, description="训练日 / 休息日；当天没有 PlanDay 时为 null"
     )
     title: str | None = Field(default=None, description="当天标题；当天没有 PlanDay 时为 null")
@@ -143,7 +147,7 @@ class CalendarCell(BaseModel):
     """
 
     date: IsoDate = Field(description="日期")
-    kind: Literal["train", "rest"] | None = Field(default=None, description="计划日类型")
+    kind: DayKind | None = Field(default=None, description="计划日类型")
     title: str | None = Field(default=None, description="计划日标题；无标题训练日不显示标签")
 
 

@@ -14,13 +14,14 @@ from __future__ import annotations
 
 import calendar as _calendar
 from datetime import date, timedelta
-from typing import Literal, cast
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import ActualItem, BodyMetric, PlanDay
-from app.schemas import BodyMetricOut, CalendarAggregate, CalendarCell, CalendarWeek
+from app.parsing import parse_day
+from app.schemas import BodyMetricOut, CalendarAggregate, CalendarCell, CalendarWeek, DayKind
 from app.services.isolation import select_owned
 
 
@@ -36,14 +37,14 @@ def month_grid(year: int, month: int) -> list[list[date | None]]:
 
 
 def parse_month(raw: str | None) -> tuple[int, int]:
-    """解析 ?month=YYYY-MM；缺省或格式不对时回退到当月（服务端不报错，FR-4.2）。"""
-    if raw:
-        try:
-            parsed = date.fromisoformat(f"{raw}-01")
-        except ValueError:
-            pass
-        else:
-            return parsed.year, parsed.month
+    """解析 ?month=YYYY-MM；缺省或格式不对时回退到当月（服务端不报错，FR-4.2）。
+
+    「认不出」的判定挂在 `parsing.parse_day`（硬不变量 2：parsing 不抛错，日期解析也只有一处）；
+    这里只负责**回退语义**，与 days 的「非法 → 400」刻意不共用。
+    """
+    parsed = parse_day(f"{raw}-01") if raw else None
+    if parsed is not None:
+        return parsed.year, parsed.month
     today = date.today()
     return today.year, today.month
 
@@ -107,9 +108,7 @@ def calendar_month(db: Session, *, user_id: int, month: str | None) -> CalendarA
                 CalendarCell(
                     date=d,
                     # ORM 列是 str，取值域只有 train/rest（models 默认 train）
-                    kind=None
-                    if plan_day is None
-                    else cast(Literal["train", "rest"], plan_day.kind),
+                    kind=None if plan_day is None else cast(DayKind, plan_day.kind),
                     title=None if plan_day is None else plan_day.title,
                 )
             )
