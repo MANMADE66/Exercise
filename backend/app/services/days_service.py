@@ -1,5 +1,5 @@
-"""日聚合读写：计划条目增删移 + 实际条目（含 prefill）+ 计划日惰性创建
-（SRS FR-5、FR-6、FR-7、FR-8.2；HLD §9.1、§9.2）。
+"""日聚合读写：计划条目增删移 + 实际条目（含 prefill）+ 感受笔记 + 计划日惰性创建
+（SRS FR-5、FR-6、FR-7、FR-8；HLD §9.1、§9.2）。
 
 三条读/建约定：
 
@@ -20,6 +20,11 @@
 - `update_actual_item()` 是**三态**的（FR-7.2）：字段缺省不动、显式 `null` 置空、空串置空。
   三者都表现为 `None` 值，只能看 `ActualItemUpdate.model_fields_set`；用 `exclude_none` 或
   「值是 None 就跳过」的一把梭会静默丢掉「置空」这一态。
+
+感受笔记（FR-8）的一条特例：**空文本不是「删除」**。DayNote 与 PlanDay 1:1（`plan_day_id`
+唯一），`save_day_note("")` 落一条空文本行而不是删行 —— FR-8.1「为空字符串时仍保存（清空原文）」
+就是这句。另外「隐式建日」在这里的条件比其它写端点严：**无 PlanDay 且文本（trim 后）非空**
+才建日（FR-8.2），空白文本与无计划日一起出现时一行都不写。
 
 聚合与兄弟条目查询全部经 `services/isolation.py` 的 `select_owned()` 收窄（硬不变量 1），
 routers 只把 `user_id` 传进来，不碰过滤条件；按 id 取资源走 `require_*()`（404 只由那一处产出）。
@@ -252,7 +257,43 @@ def delete_actual_item(db: Session, *, user_id: int, actual_item_id: int) -> Day
     return aggregate_day(db, user_id=user_id, day=day)
 
 
+# ---------- 感受笔记（FR-8，返回新鲜日聚合）----------
+
+
+def save_day_note(db: Session, *, user_id: int, day: date, text: str) -> DayAggregate:
+    """整段保存感受文本（FR-8.1）；文本非空且当天无 PlanDay 时才隐式建日（FR-8.2）。
+
+    三条边界遡自票面裁定（v1 `app/days.py:save_note` 同义）：
+
+    - 先 `strip()` 再判空 —— 纯空白与空串同待遇；
+    - **无 PlanDay + 空文本 = 一行都不写**（不建日、不建 DayNote），返回空聚合；
+    - 已有 PlanDay + 空文本 = 落一条空文本 DayNote（清空原文），**不删行**。
+    """
+    normalized = text.strip()
+    plan_day = find_plan_day(db, user_id=user_id, day=day)
+    if plan_day is None and normalized:
+        plan_day = get_or_create_plan_day(db, user_id=user_id, day=day)
+    if plan_day is not None:
+        # 1:1 由 DB 保证（plan_day_id 唯一），业务上只有 upsert 一条路；并发首次写入撞唯一键时
+        # 复用对方插的行再覆盖文本（同 `get_or_create_plan_day` 的 savepoint + 重查手法）。
+        note = _find_day_note(db, user_id=user_id, plan_day_id=plan_day.id)
+        if note is None:
+            note = _insert_or_refetch(
+                db,
+                DayNote(user_id=user_id, plan_day_id=plan_day.id, text=normalized),
+                lambda: _find_day_note(db, user_id=user_id, plan_day_id=plan_day.id),
+            )
+        note.text = normalized
+        db.commit()
+    return aggregate_day(db, user_id=user_id, day=day)
+
+
 # ---------- 内部 ----------
+
+
+def _find_day_note(db: Session, *, user_id: int, plan_day_id: int) -> DayNote | None:
+    """取计划日上那一条笔记；没有是正常状态（与 `isolation.find_*` 同一取向，故不进 isolation）。"""
+    return db.scalar(select_owned(DayNote, user_id).where(DayNote.plan_day_id == plan_day_id))
 
 
 def _copy_missing_actuals(db: Session, *, user_id: int, plan_day: PlanDay) -> None:
@@ -417,6 +458,9 @@ def _actual_items(db: Session, *, user_id: int, plan_day_id: int) -> list[Actual
 
 
 def _note_text(db: Session, *, user_id: int, plan_day_id: int) -> str:
-    """感受笔记 1:1 挂计划日；没有记录即空串（前端永远拿到字符串，不用判 null）。"""
-    found = db.scalar(select_owned(DayNote, user_id).where(DayNote.plan_day_id == plan_day_id))
+    """感受笔记 1:1 挂计划日；没有记录即空串（前端永远拿到字符串，不用判 null）。
+
+    不加 `strip()`：存进去是什么就回什么（GET 不做“美化”，trim 只发生在 PUT 入口）。
+    """
+    found = _find_day_note(db, user_id=user_id, plan_day_id=plan_day_id)
     return "" if found is None else found.text

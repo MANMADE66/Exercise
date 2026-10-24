@@ -139,6 +139,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/days/{iso_date}/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 保存感受笔记
+         * @description 整段保存（FR-8.1）：空串合法 = 清空原文；文本非空且当天无计划时才隐式建日（FR-8.2）。
+         */
+        put: operations["save_day_note_days__iso_date__note_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/days/{iso_date}/plan-items": {
         parameters: {
             query?: never;
@@ -483,6 +503,20 @@ export interface components {
              * @description 当天标题；当天没有 PlanDay 时为 null
              */
             title?: string | null;
+        };
+        /**
+         * DayNoteUpdate
+         * @description 整段保存感受文本（FR-8.1）。
+         *
+         *     `text` **必填**：PUT 的语义是「整段替换」，缺省不应该静默地被当成「清空」—— 真要清空就
+         *     显式传空串（服务端 trim 后落库为空文本，仍保留 DayNote 行，见 FR-8.1「为空字符串时仍保存」）。
+         */
+        DayNoteUpdate: {
+            /**
+             * Text
+             * @description 感受原文；空串合法，含义为清空（不删 DayNote 行）
+             */
+            text: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -901,6 +935,48 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 日期格式非法，需 YYYY-MM-DD */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_day_note_days__iso_date__note_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iso_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayNoteUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

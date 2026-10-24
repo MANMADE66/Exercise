@@ -1,4 +1,4 @@
-"""日聚合端点（SRS FR-5、FR-6、FR-7、HLD §9.1、§9.2）。
+"""日聚合端点（SRS FR-5、FR-6、FR-7、FR-8、HLD §9.1、§9.2）。
 
 薄层：解析路径参数 → `CurrentUser` → service 聚合返回。两条错误语义刻意不共用 helper：
 
@@ -31,6 +31,7 @@ from app.schemas import (
     ActualItemCreate,
     ActualItemUpdate,
     DayAggregate,
+    DayNoteUpdate,
     PlanItemCreate,
     PlanItemMove,
 )
@@ -182,4 +183,25 @@ def delete_actual_item(
     """删除实际条目（FR-7.4）：直接删，剩余条目 position 重排连续。"""
     return days_service.delete_actual_item(
         db, user_id=current_user.id, actual_item_id=actual_item_id
+    )
+
+
+# ---------- 感受笔记（FR-8）----------
+
+
+@router.put(
+    "/{iso_date}/note",
+    response_model=DayAggregate,
+    summary="保存感受笔记",
+    responses={400: {"description": INVALID_DATE_DETAIL}},
+)
+def save_day_note(
+    iso_date: str, payload: DayNoteUpdate, db: DbSession, current_user: CurrentUser
+) -> DayAggregate:
+    """整段保存（FR-8.1）：空串合法 = 清空原文；文本非空且当天无计划时才隐式建日（FR-8.2）。"""
+    return days_service.save_day_note(
+        db,
+        user_id=current_user.id,
+        day=parse_day_or_400(iso_date),
+        text=payload.text,
     )

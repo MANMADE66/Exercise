@@ -1,6 +1,7 @@
 Type: task
 Status: ready-for-agent
 Blocked by: 09
+Claimed by: pi
 
 ## Question
 

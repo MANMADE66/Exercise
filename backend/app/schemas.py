@@ -200,6 +200,19 @@ class ActualItemUpdate(BaseModel):
     note: str | None = Field(default=None, description="该行备注；缺省不动，null 或空串置空")
 
 
+# ---------- 感受笔记（SRS FR-8、HLD §9.1） ----------
+
+
+class DayNoteUpdate(BaseModel):
+    """整段保存感受文本（FR-8.1）。
+
+    `text` **必填**：PUT 的语义是「整段替换」，缺省不应该静默地被当成「清空」—— 真要清空就
+    显式传空串（服务端 trim 后落库为空文本，仍保留 DayNote 行，见 FR-8.1「为空字符串时仍保存」）。
+    """
+
+    text: str = Field(description="感受原文；空串合法，含义为清空（不删 DayNote 行）")
+
+
 class BodyMetricOut(BaseModel):
     """周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。"""
 
