@@ -84,3 +84,11 @@ cd frontend && npm run dev      # :5173，页面会调 /health 显示在线状�
 ### 确认（2026-10-23）
 
 用户确认两点均接受：verify 关卡顺序与 mutmut 默认关保留；「未入库只警告」的空窗接受。骨架已提交（`d25bd9c`），`docs/openapi.json` 与 `frontend/src/api-types.ts` 随提交入库，禁手改检查自此实际生效（复跑 verify：检查关通过，无「尚未入库」提示）。`scripts/export_openapi.py` 补 `newline="\n"`，避免 Windows 写出 CRLF 与 `.gitattributes` 的 LF 约定冲突。
+
+### 复验（2026-10-24，骨架签收）
+
+用户对票 02 的正式签收。当次实测：`bash scripts/verify.sh` 一次全绿（EXIT=0，ruff → ruff format → mypy strict → pytest 32 例 → 导出 openapi.json → 生成 api-types.ts → 禁手改 diff → oxlint --deny-warnings → oxfmt → vue-tsc → vite build），生成物禁手改关已随入库生效。
+
+- **oxfmt 收编 `.vue`**：实测 `oxfmt --check src '**/*.vue'` 对 5 个 SFC 零 diff，原先的 `'!**/*.vue'` 排除属于策略而非能力限制，已撤销；主链只剩 `'!src/api-types.ts'`（生成物）。HLD §12.0 同步改写。
+- **mutmut 本机不可验**：`wsl.exe -l -v` 显示「尚未安装用于 Linux 的分发版」，而 mutmut 依赖 `os.fork`。门控保留（`RUN_MUTMUT=1` + 非 MINGW/MSYS/CYGWIN 才执行），记账为「本机未验证」，待 `days_service` 落地那票在 WSL/CI 上补一次真实跑。
+- 其余五道关卡的顺序、失败文案、`[tool.mutmut] source_paths` 现状维持不变。
