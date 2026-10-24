@@ -53,19 +53,18 @@
 
 ### 前沿（2026-10-24 二次切票，前端平移）
 
-前端五票已按 [`spec.md`](spec.md) 切出，全部 `Status: ready-for-agent`、无 `Claimed by`，可放手让
-代理领：
+前端五票已按 [`spec.md`](spec.md) 切出，全部由主线会话于 2026-10-24 落地（PR #1，`feat/frontend-views`）：
 
-| 票 | 事项 | 阻塞于 |
+| 票 | 事项 | 落地 |
 |---|---|---|
-| 16 | [月历只读网格 + 共享层预置（14 个出海口包装 · 纯函数 · 方向 A 样式 · 顶栏）](issues/16-calendar-readonly.md) | — |
-| 17 | [周体重列（失焦保存 + 非法还原 + 保住体脂率/备注）](issues/17-week-metric.md) | 16 |
-| 18 | [日详情展开：读聚合 + 计划列增删移](issues/18-day-detail-plan.md) | 16 |
-| 19 | [实际列与感受（autosave · 预填 · 计划外新增 · 删除）](issues/19-day-detail-actual.md) | 18 |
-| 20 | [模板页（列表 · 新建 · 删除 · 铺排）](issues/20-templates-view.md) | 16 |
+| 16 | [月历只读网格 + 共享层预置](issues/16-calendar-readonly.md) | ✅ `5f5729f` |
+| 17 | [周体重列（失焦保存 + 非法还原 + 保住体脂率/备注）](issues/17-week-metric.md) | ✅ `a252a8a` |
+| 18 | [日详情展开：读聚合 + 计划列增删移](issues/18-day-detail-plan.md) | ✅ `611093d` |
+| 19 | [实际列与感受（autosave · 预填 · 计划外新增 · 删除）](issues/19-day-detail-actual.md) | ✅ `e3b28ac` |
+| 20 | [模板页（列表 · 新建 · 删除 · 铺排）](issues/20-templates-view.md) | ✅ `5ed955b` |
 
-依赖图：`16 → 17`、`16 → 18 → 19`、`16 → 20`。**文件冲突不是阻塞边**：17 与 18 都动
-`MonthGrid` / 月历视图，按编号串行提交；20 只碰模板页自己的文件，可与 17/18 错开。
+依赖图：`16 → 17`、`16 → 18 → 19`、`16 → 20`。实际执行全串行（主线会话逐票 verify + 提交），
+依赖图原本担心的共享文件冲突没有发生。
 
 切分口径改动了一处：spec 建议的第 1 张票原是「共享层一次改完」（纯水平切片、在浏览器里看不出
 变化），已并进 16 的月历只读网格 —— 同一票既做 prefactor 又交付一个能亲自点开的竖切。
@@ -91,6 +90,12 @@
 - 票 02 复验（2026-10-24，骨架签收）：`bash scripts/verify.sh` 全绿（EXIT=0，32 例）。三处更新：① **oxfmt 收编 `.vue`**——实测 5 个 SFC 零 diff，`'!**/*.vue'` 排除属策略而非能力限制，已撤销，主链只剩 `'!src/api-types.ts'`（生成物），HLD §12.0 同步改写；② **mutmut 本机不可验**——`wsl.exe -l -v` 显示无已安装发行版，而 mutmut 依赖 `os.fork`，门控保留、记账为「本机未验证」，待 `days_service` 落地票在 WSL/CI 补跑；③ **HLD §5.1 校准**——`db.py` 改为 `create_db_engine` / `create_session_factory` / `get_db` 挂 `app.state`，§5.2 补每连接 `PRAGMA foreign_keys=ON`，未落地模块标明「随执行票创建」。同时建立根目录 `CONTEXT.md`（7 术语 + 3 条易混边界，`docs/adr/` 不建——D1–D13 已在 HLD 决策索引，避免双写）。详 [`issues/02-walking-skeleton.md`](issues/02-walking-skeleton.md)
 - 执行层切票（2026-10-24）：只切关键路径两票 —— 07（认证与会话：`security.py` + `deps.py` + `/auth/*` + 契约闭环 + LoginView 解除提交禁用）与 08（归属隔离：service 层 `user_id` 收窄、父链校验、404 同码同文案、A/B 测试助手，`Blocked by: 07`）。其余业务域等地基落地后再切，避免空转。
 
+- 票 16（月历只读网格 + 共享层，已落地 `5f5729f`）：`api.ts` 补齐全部业务端点包装（15 个函数，类型全取生成物、零 `as`）；新 `format.ts` 纯函数（`weightText` / `dose` / `todayIso` / `monthKey` / `shiftMonth` / `dayOfMonth` / `dayTitle`）；方向 A 样式整份迁入（类名不改，骨架期类追加尾部）；`App.vue` 收为外壳 + `TopBar`；`MonthGrid` 只做表结构、唯一 `colspan="8"` 由插槽承载；`CalendarView` 持聚合与展开态，标题/翻页以响应的生效 `year`/`month` 为准。过程记账：后台实现 agent 被中途停，半成品仅一处死 import（`useSlots`），主线接手收尾而非重写。冒烟主线清单（票 17–20 共用验收依据）写在票 16 的 Answer。[`issues/16-calendar-readonly.md`](issues/16-calendar-readonly.md)
+- 票 17（周体重列，已落地 `a252a8a`）：新 `WeekMetric` 自持该行 metric；失焦保存、成功用响应就地替换；**整体替换陷阱**钉死 —— 保存时 `body_fat_pct`（`String()` 直转不截断）与 `note` 原值回传；「没改就不发请求」（trim 后与上次保存值比较）；422 还原 + 行内提示，非 422 失败不还原用户文本。[`issues/17-week-metric.md`](issues/17-week-metric.md)
+- 票 18（日详情展开 + 计划列，已落地 `611093d`）：新 `DayDetail`（props 只有 `date`，`:key` 换天重建 + 实例记日期作竞态守卫二道保险）；写操作统一「等响应 → 整体替换聚合」（D7）；404 提示「这条已经不存在了」并重拉当天；计划列增/删/移一把锁。[`issues/18-day-detail-plan.md`](issues/18-day-detail-plan.md)
+- 票 19（实际列与感受，已落地 `e3b28ac`）：逐字段 autosave —— 每行四字段各持 `{text, saved, pending}` 草稿，失焦只 PATCH 该字段，空串置空；草稿同步「在途/聚焦字段不回灌」保住两秒两字段场景；预填（仅有计划时渲染）/ 计划外新增 / 行级删除 / 感受显式保存（空串合法）。**顺带修掉票 18 潜伏 bug**：旧 `runPlanOp` 的 404 分支先设错误再 `refresh()`，而 `refresh()` 开头清错误 → 提示被立即抹掉；改为统一 `execute()` + `refresh()` 成功才清错误。[`issues/19-day-detail-actual.md`](issues/19-day-detail-actual.md)
+- 票 20（模板页，已落地 `5ed955b`）：列表 / 新建 / 删除 / 铺排全部接上真实端点；名称/天数原始文本提交（服务端回退 8 / 截断 12 / 补未命名）；固定 12 日块；列表唯一来源是 `GET /templates`（新建删除后重拉，不用 DELETE 响应拼列表）；删除一次浏览器确认（本轮唯一新增交互）；铺排结果含跳过日期列表、停在模板页。[`issues/20-templates-view.md`](issues/20-templates-view.md)
+
 - 票 08（归属隔离，已落地 `3287232`）：`app/services/isolation.py` 是判断归属的唯一地方 —— `select_owned(model, user_id)` 供列表/聚合收窄；`find_plan_day` / `find_exercise` / `find_body_metric` 按业务键查、不存在回 `None`；`require_planned_item` / `require_actual_item` / `require_template` / `require_template_day` / `require_template_item` 按 id 取且**父链每一层都校验 user_id**（只信子表冗余列会漏掉「A 的条目挂到 B 的模板下」的脏行，测试用 `update().values(user_id=...)` 造这种行验证双方都 404）。404 用 `app/core/errors.py`（`NOT_FOUND_DETAIL` + `NotFoundError` + `create_app` 注册的全局处理器）而非每处 try/except：物理上只有一个文案出口，业务 router 连 catch 都不用写。`require_day_note` 故意不做（DayNote 1:1 挂 PlanDay，入口恒为 `PUT /days/{iso}/note`，按 id 的 helper 是死代码）。conftest 新增 `Actor` + `actor_a`/`actor_b`（直插 users + 签真 JWT，跳过 bcrypt）+ `Factories`（plan_day / planned_item / actual_item / template / template_day / template_item / body_metric / exercise，commit 后 HTTP 可见）。verify 全绿（**71 例**，契约零 diff）。[`issues/08-isolation.md`](issues/08-isolation.md)
 
 - 票 07（认证与会话，已落地 `c333e4f`）：`core/security.py`（bcrypt cost=12；JWT HS256，`sub` 必须是字符串否则 PyJWT 解码即报 InvalidSubjectError；坏/过期/缺声明一律解出 `None`）+ `core/deps.py`（`HTTPBearer(auto_error=False)`：缺 header 默认是 403，必须改成 401；三个失败分支收进 `_unauthorized()`，并导出 `CurrentUser`/`TokenPolicyDep` 给票 08）+ `services/auth_service.py`（票面只列 router，但硬不变量 1 要求写操作与业务判断在 service；并发注册撞唯一键回滚成同一 409 语义）+ `routers/auth.py`（只做 409/401 映射）。契约：`Credentials`（注册/登录共用）/`UserPublic`/`TokenResponse`；422 中文文案必须用 `PydanticCustomError`，`ValueError` 会被加 `Value error, ` 前缀。三处裁定：① 密码 >72 字节（bcrypt 5.x 硬上限，按字节不按字符）拦成 422 而非静默截断；② 登录用同一 `Credentials`，用户名 <3 字符回 422（FR-2.5 只约束「密码错 vs 用户不存在」）；③ 测试用 `add_api_route(include_in_schema=False)` 挂 `/_test/whoami` 探针，五种 401 走真实 HTTP 路径。前端 `api.ts` 增 `register`/`login`、`stores.ts` 的 `SessionUser` 换成 `components["schemas"]["UserPublic"]`、`LoginView` 解除提交禁用。顺带闭环票 02 遗留问题 3：`httpx 0.28.1` → `httpx2 2.16.0`（starlette testclient 优先 import httpx2），pytest 0 warning，HLD §12.1 与 research §9 已同步。[`issues/07-auth-session.md`](issues/07-auth-session.md)
@@ -109,8 +114,8 @@
 
 ## Not yet specified
 
-- **前端组件平移**（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view 接上真实请求 + `app.css` 方向 A 令牌迁移）：**已毕业成 spec** —— [`spec.md`](spec.md)（2026-10-24，`ready-for-agent`）。组件只消费生成契约、不手写形状（D13）；建议切成 5 张票（共享层 → 月历+周体重 → 计划列 → 实际列+感受 → 模板页），票号从 16 起，细节见 spec 的「Further Notes」。
-- **prod 静态托管**（D11：`main.py` 挂 `dist` + SPA 兜底、单地址）与**删除旧 `app/`**（含 `tests/`、`run.py`）：都等全链路走通后再切，触发时机现在判不准（删除太早会丢 v1 参考实现）。
+- **前端组件平移**（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view 接上真实请求 + `app.css` 方向 A 令牌迁移）：**已闭环** —— 票 16–20 于 2026-10-24 全部落地（见上方前沿表与各票 Answer），PR #1。残余：手动冒烟主线（清单在票 16 Answer）跑过之前，prod 静态托管与删除旧 `app/` 不动。
+- **prod 静态托管**（D11：`main.py` 挂 `dist` + SPA 兜底、单地址）与**删除旧 `app/`**（含 `tests/`、`run.py`）：前端平移已闭环（票 16–20），触发时机 = 手动冒烟主线（票 16 Answer 的清单）跑过之后另切。
 - 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机仍不可验证（无 WSL 发行版）—— 真实跑点已到票 09，11 又把 position 维护与并发重查、12 又把三态逐字段更新与 prefill 幂等重算、13 又把空/非空文本 × 有无 PlanDay 的 straddle 分支堆进了 `days_service.py`，但 `mutmut run` 在 Windows 上仍被上游直接拒绝（缺 `os.fork`），记「本机未验证」，待 WSL/CI 补跑。
 - 验收判据（HLD §12.0 已给冒烟主线：登录→月历→展开→autosave→预填→模板 apply→周体重→登出）的**确切步骤与判据**、README 双模式改写、旧实现删除时点 —— 待全链路走通后精确成票。
 
