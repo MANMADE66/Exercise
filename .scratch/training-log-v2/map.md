@@ -42,14 +42,33 @@
 | 15 | [周体重（FR-10）](issues/15-week-metrics.md) | ✅ `4ce9c04` |
 
 **下一轮的前沿回到雾区**：前端组件平移（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view
-接真实请求）现在可以切票了 —— 后端 14 个端点的契约全部机器生成到 `api-types.ts`（D13 的阻塞理由
-已消失）。prod 静态托管（D11）与删除旧 `app/` 仍等全链路走通后再切（见「Not yet specified」）。
+接真实请求）**已切成 16–20（见下）**—— 后端 14 个端点的契约全部机器生成到 `api-types.ts`（D13 的
+阻塞理由已消失）。prod 静态托管（D11）与删除旧 `app/` 仍等全链路走通后再切（见「Not yet specified」）。
 
 切票理由（保留原文）：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与
 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则
 写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。**11、12、13 按序闭合**；14 与 15
 按「各碰自己的新文件」并行 —— 事后看这个判断只对了一半：两者都改 `schemas.py` / `main.py` /
 生成物，实际只能错开提交（票 14 的 `## Answer` 已记账，下一轮同动契约的票必须串行）。
+
+### 前沿（2026-10-24 二次切票，前端平移）
+
+前端五票已按 [`spec.md`](spec.md) 切出，全部 `Status: ready-for-agent`、无 `Claimed by`，可放手让
+代理领：
+
+| 票 | 事项 | 阻塞于 |
+|---|---|---|
+| 16 | [月历只读网格 + 共享层预置（14 个出海口包装 · 纯函数 · 方向 A 样式 · 顶栏）](issues/16-calendar-readonly.md) | — |
+| 17 | [周体重列（失焦保存 + 非法还原 + 保住体脂率/备注）](issues/17-week-metric.md) | 16 |
+| 18 | [日详情展开：读聚合 + 计划列增删移](issues/18-day-detail-plan.md) | 16 |
+| 19 | [实际列与感受（autosave · 预填 · 计划外新增 · 删除）](issues/19-day-detail-actual.md) | 18 |
+| 20 | [模板页（列表 · 新建 · 删除 · 铺排）](issues/20-templates-view.md) | 16 |
+
+依赖图：`16 → 17`、`16 → 18 → 19`、`16 → 20`。**文件冲突不是阻塞边**：17 与 18 都动
+`MonthGrid` / 月历视图，按编号串行提交；20 只碰模板页自己的文件，可与 17/18 错开。
+
+切分口径改动了一处：spec 建议的第 1 张票原是「共享层一次改完」（纯水平切片、在浏览器里看不出
+变化），已并进 16 的月历只读网格 —— 同一票既做 prefactor 又交付一个能亲自点开的竖切。
 
 ## Notes
 
@@ -90,7 +109,7 @@
 
 ## Not yet specified
 
-- **前端组件平移**（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view 接上真实请求 + `app.css` 方向 A 令牌迁移）：等 09–15 后端契约齐了再从雾里毕业，否则组件会照着手写形状写（违反 D13）。分几张票也那时定。
+- **前端组件平移**（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view 接上真实请求 + `app.css` 方向 A 令牌迁移）：**已毕业成 spec** —— [`spec.md`](spec.md)（2026-10-24，`ready-for-agent`）。组件只消费生成契约、不手写形状（D13）；建议切成 5 张票（共享层 → 月历+周体重 → 计划列 → 实际列+感受 → 模板页），票号从 16 起，细节见 spec 的「Further Notes」。
 - **prod 静态托管**（D11：`main.py` 挂 `dist` + SPA 兜底、单地址）与**删除旧 `app/`**（含 `tests/`、`run.py`）：都等全链路走通后再切，触发时机现在判不准（删除太早会丢 v1 参考实现）。
 - 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机仍不可验证（无 WSL 发行版）—— 真实跑点已到票 09，11 又把 position 维护与并发重查、12 又把三态逐字段更新与 prefill 幂等重算、13 又把空/非空文本 × 有无 PlanDay 的 straddle 分支堆进了 `days_service.py`，但 `mutmut run` 在 Windows 上仍被上游直接拒绝（缺 `os.fork`），记「本机未验证」，待 WSL/CI 补跑。
 - 验收判据（HLD §12.0 已给冒烟主线：登录→月历→展开→autosave→预填→模板 apply→周体重→登出）的**确切步骤与判据**、README 双模式改写、旧实现删除时点 —— 待全链路走通后精确成票。
