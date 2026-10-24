@@ -256,6 +256,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 模板列表
+         * @description 当前用户的全部模板及逐日骨架（FR-9.1）；别人的模板不可见。
+         */
+        get: operations["list_templates_templates_get"];
+        put?: never;
+        /**
+         * 创建模板
+         * @description 建模板（FR-9.2）：名称/天数归一与空动作名忽略都在 service，契约层只收原始输入。
+         */
+        post: operations["create_template_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 删除模板
+         * @description 删除模板（FR-9.4）：天与条目一并级联删除，返回剩余模板列表。
+         */
+        delete: operations["delete_template_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/templates/{template_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 应用模板
+         * @description 从 `start` 起逐日铺排（FR-9.3）：已有计划日的日期跳过，绝不覆盖。
+         */
+        post: operations["apply_template_templates__template_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -656,6 +720,178 @@ export interface components {
              * @description 计划重量（kg），解析失败为 null
              */
             weight_kg?: number | null;
+        };
+        /**
+         * TemplateAggregate
+         * @description 一个循环模板及其逐日骨架（FR-9.1）；`GET /templates` 返回它的数组。
+         */
+        TemplateAggregate: {
+            /**
+             * Days
+             * @description 逐日骨架，按 day_index 升序
+             */
+            days?: components["schemas"]["TemplateDayOut"][];
+            /**
+             * Id
+             * @description 模板 id（删除、apply 用）
+             */
+            id: number;
+            /**
+             * Length Days
+             * @description 循环长度 1–12（非法回退 8，超界静默截断 12）
+             */
+            length_days: number;
+            /**
+             * Name
+             * @description 模板名；空名创建时由服务端补「未命名循环」
+             */
+            name: string;
+        };
+        /**
+         * TemplateApplyRequest
+         * @description 应用模板（FR-9.3）。
+         *
+         *     `start` 收**原始文本**：格式非法要走 400（HLD §9.2「日期格式非法」），标成 `date` 会变成
+         *     Pydantic 原生的 422，与错误码约定不符（与 `GET /days/{iso_date}` 同一手法）。
+         */
+        TemplateApplyRequest: {
+            /**
+             * Start
+             * @description 起始日 YYYY-MM-DD；从该日起按 day_index 逐日铺排
+             */
+            start: string;
+        };
+        /**
+         * TemplateApplyResult
+         * @description 铺排结果：新建 / 跳过的计数与跳过的日期（FR-9.3，前端据此提示）。
+         */
+        TemplateApplyResult: {
+            /**
+             * Created
+             * @description 新建的计划日数量
+             */
+            created: number;
+            /**
+             * Skipped
+             * @description 因当天已有计划日而跳过的数量
+             */
+            skipped: number;
+            /**
+             * Skipped Dates
+             * @description 被跳过的日期（升序，原计划日一个字节都没动）
+             */
+            skipped_dates?: string[];
+        };
+        /**
+         * TemplateCreate
+         * @description 创建模板（FR-9.2）。
+         *
+         *     `length_days` 收**原始文本**：标成 `int` 会让 `"abc"` / `"8天"` 在 Pydantic 就被 422 拦掉，
+         *     而 FR-9.2 要的是「非法回退 8、超界截断 12、不报错」。`coerce_numbers_to_str` 让前端顺手传
+         *     数字也照收（都归一成文本再走 `parse_sets`）。
+         *
+         *     `days` 按数组下标对应 `day_index`：长度超过 `length_days` 的多余天被忽略（v1 只读
+         *     `range(length)` 内的表单字段），不足的由服务端补默认训练日。
+         */
+        TemplateCreate: {
+            /**
+             * Days
+             * @description 逐日骨架，下标即 day_index；不足部分补默认训练日
+             */
+            days?: components["schemas"]["TemplateDayIn"][];
+            /**
+             * Length Days
+             * @description 循环长度原文本；非法回退 8，超界截断 12
+             */
+            length_days?: string | null;
+            /**
+             * Name
+             * @description 模板名；去首尾空白后为空则用「未命名循环」
+             */
+            name?: string | null;
+        };
+        /**
+         * TemplateDayIn
+         * @description 创建模板时的一天。
+         *
+         *     `kind` 收**裸 str** 而不是 `DayKind`：FR-9.2 的规则是「非 `rest` 一律 `train`」（v1 原样），
+         *     标成 `Literal` 会把填错的 kind 变成 422 整单拒绝 —— 与「静默归一」语义正好相反。规则落在
+         *     service，与 `length_days` 的「非法回退」同一取向。
+         */
+        TemplateDayIn: {
+            /**
+             * Items
+             * @description 当天的动作，按数组顺序
+             */
+            items?: components["schemas"]["TemplateItemIn"][];
+            /**
+             * Kind
+             * @description rest 为休息日，其余一律按训练日处理
+             * @default train
+             */
+            kind: string;
+            /**
+             * Title
+             * @description 当天标题；去首尾空白后为空即无标题
+             */
+            title?: string | null;
+        };
+        /**
+         * TemplateDayOut
+         * @description 模板里的一天：`day_index` 从 0 起，apply 时按它偏移起始日。
+         */
+        TemplateDayOut: {
+            /**
+             * Day Index
+             * @description 模板内序号，从 0 起；apply 时对应 起始日 + day_index
+             */
+            day_index: number;
+            /**
+             * Items
+             * @description 当天的动作，按 position 升序
+             */
+            items?: components["schemas"]["TemplateItemOut"][];
+            /**
+             * Kind
+             * @description 训练日 / 休息日
+             * @enum {string}
+             */
+            kind: "train" | "rest";
+            /**
+             * Title
+             * @description 当天标题；没填就是 null
+             */
+            title?: string | null;
+        };
+        /**
+         * TemplateItemIn
+         * @description 创建模板时的条目：只收动作名。
+         *
+         *     动作名**不在这里校验非空**（与计划条目 `_ExerciseNamed` 相反）：v1 的输入是一行一个动作名，
+         *     空行被忽略；JSON 形状下与之对应的就是「strip 后为空的动作名被跳过」，归 service 处理。
+         */
+        TemplateItemIn: {
+            /**
+             * Exercise
+             * @description 动作名；去首尾空白后为空则整条忽略
+             */
+            exercise: string;
+        };
+        /**
+         * TemplateItemOut
+         * @description 模板条目：只有动作名与顺序（模板不含重量，SRS FR-9.2）。
+         */
+        TemplateItemOut: {
+            /**
+             * Exercise
+             * @description 动作名（已建入本人动作库）
+             */
+            exercise: string;
+            /**
+             * Position
+             * @description 当天顺序，从 0 起连续
+             */
+            position: number;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -1214,6 +1450,146 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DayAggregate"];
                 };
+            };
+            /** @description 资源不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateAggregate"][];
+                };
+            };
+        };
+    };
+    create_template_templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateAggregate"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_template_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateAggregate"][];
+                };
+            };
+            /** @description 资源不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_template_templates__template_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateApplyResult"];
+                };
+            };
+            /** @description 日期格式非法，需 YYYY-MM-DD */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description 资源不存在 */
             404: {

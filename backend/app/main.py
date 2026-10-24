@@ -16,7 +16,7 @@ from app.core.config import Settings
 from app.core.config import settings as default_settings
 from app.core.errors import NotFoundError, not_found_handler
 from app.db import create_db_engine, create_session_factory, init_db, load_or_create_secret_key
-from app.routers import auth, calendar, days, health, metrics
+from app.routers import auth, calendar, days, health, metrics, templates
 
 
 @asynccontextmanager
@@ -56,6 +56,7 @@ def create_app(config: Settings | None = None) -> FastAPI:
     application.include_router(days.router)
     application.include_router(days.plan_items_router)
     application.include_router(days.actual_items_router)
+    application.include_router(templates.router)
     application.include_router(metrics.router)
     return application
 

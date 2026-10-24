@@ -687,6 +687,239 @@
         "title": "PlannedItemOut",
         "type": "object"
       },
+      "TemplateAggregate": {
+        "description": "一个循环模板及其逐日骨架（FR-9.1）；`GET /templates` 返回它的数组。",
+        "properties": {
+          "days": {
+            "description": "逐日骨架，按 day_index 升序",
+            "items": {
+              "$ref": "#/components/schemas/TemplateDayOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "id": {
+            "description": "模板 id（删除、apply 用）",
+            "title": "Id",
+            "type": "integer"
+          },
+          "length_days": {
+            "description": "循环长度 1–12（非法回退 8，超界静默截断 12）",
+            "title": "Length Days",
+            "type": "integer"
+          },
+          "name": {
+            "description": "模板名；空名创建时由服务端补「未命名循环」",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "length_days"
+        ],
+        "title": "TemplateAggregate",
+        "type": "object"
+      },
+      "TemplateApplyRequest": {
+        "description": "应用模板（FR-9.3）。\n\n`start` 收**原始文本**：格式非法要走 400（HLD §9.2「日期格式非法」），标成 `date` 会变成\nPydantic 原生的 422，与错误码约定不符（与 `GET /days/{iso_date}` 同一手法）。",
+        "properties": {
+          "start": {
+            "description": "起始日 YYYY-MM-DD；从该日起按 day_index 逐日铺排",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start"
+        ],
+        "title": "TemplateApplyRequest",
+        "type": "object"
+      },
+      "TemplateApplyResult": {
+        "description": "铺排结果：新建 / 跳过的计数与跳过的日期（FR-9.3，前端据此提示）。",
+        "properties": {
+          "created": {
+            "description": "新建的计划日数量",
+            "title": "Created",
+            "type": "integer"
+          },
+          "skipped": {
+            "description": "因当天已有计划日而跳过的数量",
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "skipped_dates": {
+            "description": "被跳过的日期（升序，原计划日一个字节都没动）",
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Skipped Dates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "created",
+          "skipped"
+        ],
+        "title": "TemplateApplyResult",
+        "type": "object"
+      },
+      "TemplateCreate": {
+        "description": "创建模板（FR-9.2）。\n\n`length_days` 收**原始文本**：标成 `int` 会让 `\"abc\"` / `\"8天\"` 在 Pydantic 就被 422 拦掉，\n而 FR-9.2 要的是「非法回退 8、超界截断 12、不报错」。`coerce_numbers_to_str` 让前端顺手传\n数字也照收（都归一成文本再走 `parse_sets`）。\n\n`days` 按数组下标对应 `day_index`：长度超过 `length_days` 的多余天被忽略（v1 只读\n`range(length)` 内的表单字段），不足的由服务端补默认训练日。",
+        "properties": {
+          "days": {
+            "description": "逐日骨架，下标即 day_index；不足部分补默认训练日",
+            "items": {
+              "$ref": "#/components/schemas/TemplateDayIn"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "length_days": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "循环长度原文本；非法回退 8，超界截断 12",
+            "title": "Length Days"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "模板名；去首尾空白后为空则用「未命名循环」",
+            "title": "Name"
+          }
+        },
+        "title": "TemplateCreate",
+        "type": "object"
+      },
+      "TemplateDayIn": {
+        "description": "创建模板时的一天。\n\n`kind` 收**裸 str** 而不是 `DayKind`：FR-9.2 的规则是「非 `rest` 一律 `train`」（v1 原样），\n标成 `Literal` 会把填错的 kind 变成 422 整单拒绝 —— 与「静默归一」语义正好相反。规则落在\nservice，与 `length_days` 的「非法回退」同一取向。",
+        "properties": {
+          "items": {
+            "description": "当天的动作，按数组顺序",
+            "items": {
+              "$ref": "#/components/schemas/TemplateItemIn"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "default": "train",
+            "description": "rest 为休息日，其余一律按训练日处理",
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "当天标题；去首尾空白后为空即无标题",
+            "title": "Title"
+          }
+        },
+        "title": "TemplateDayIn",
+        "type": "object"
+      },
+      "TemplateDayOut": {
+        "description": "模板里的一天：`day_index` 从 0 起，apply 时按它偏移起始日。",
+        "properties": {
+          "day_index": {
+            "description": "模板内序号，从 0 起；apply 时对应 起始日 + day_index",
+            "title": "Day Index",
+            "type": "integer"
+          },
+          "items": {
+            "description": "当天的动作，按 position 升序",
+            "items": {
+              "$ref": "#/components/schemas/TemplateItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "description": "训练日 / 休息日",
+            "enum": [
+              "train",
+              "rest"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "当天标题；没填就是 null",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "day_index",
+          "kind"
+        ],
+        "title": "TemplateDayOut",
+        "type": "object"
+      },
+      "TemplateItemIn": {
+        "description": "创建模板时的条目：只收动作名。\n\n动作名**不在这里校验非空**（与计划条目 `_ExerciseNamed` 相反）：v1 的输入是一行一个动作名，\n空行被忽略；JSON 形状下与之对应的就是「strip 后为空的动作名被跳过」，归 service 处理。",
+        "properties": {
+          "exercise": {
+            "description": "动作名；去首尾空白后为空则整条忽略",
+            "title": "Exercise",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exercise"
+        ],
+        "title": "TemplateItemIn",
+        "type": "object"
+      },
+      "TemplateItemOut": {
+        "description": "模板条目：只有动作名与顺序（模板不含重量，SRS FR-9.2）。",
+        "properties": {
+          "exercise": {
+            "description": "动作名（已建入本人动作库）",
+            "title": "Exercise",
+            "type": "string"
+          },
+          "position": {
+            "description": "当天顺序，从 0 起连续",
+            "title": "Position",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exercise",
+          "position"
+        ],
+        "title": "TemplateItemOut",
+        "type": "object"
+      },
       "TokenResponse": {
         "properties": {
           "token": {
@@ -1497,6 +1730,201 @@
         "summary": "上下移动计划条目",
         "tags": [
           "days"
+        ]
+      }
+    },
+    "/templates": {
+      "get": {
+        "description": "当前用户的全部模板及逐日骨架（FR-9.1）；别人的模板不可见。",
+        "operationId": "list_templates_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateAggregate"
+                  },
+                  "title": "Response List Templates Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "模板列表",
+        "tags": [
+          "templates"
+        ]
+      },
+      "post": {
+        "description": "建模板（FR-9.2）：名称/天数归一与空动作名忽略都在 service，契约层只收原始输入。",
+        "operationId": "create_template_templates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "创建模板",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/templates/{template_id}": {
+      "delete": {
+        "description": "删除模板（FR-9.4）：天与条目一并级联删除，返回剩余模板列表。",
+        "operationId": "delete_template_templates__template_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateAggregate"
+                  },
+                  "title": "Response Delete Template Templates  Template Id  Delete",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "资源不存在"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "删除模板",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/templates/{template_id}/apply": {
+      "post": {
+        "description": "从 `start` 起逐日铺排（FR-9.3）：已有计划日的日期跳过，绝不覆盖。",
+        "operationId": "apply_template_templates__template_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateApplyResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "日期格式非法，需 YYYY-MM-DD"
+          },
+          "404": {
+            "description": "资源不存在"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "应用模板",
+        "tags": [
+          "templates"
         ]
       }
     }
