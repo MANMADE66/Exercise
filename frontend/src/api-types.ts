@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 月历聚合 */
+        get: operations["get_calendar_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -59,6 +76,103 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * BodyMetricOut
+         * @description 周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。
+         */
+        BodyMetricOut: {
+            /**
+             * Body Fat Pct
+             * @description 体脂率（百分比）
+             */
+            body_fat_pct?: number | null;
+            /**
+             * Note
+             * @description 备注
+             */
+            note?: string | null;
+            /**
+             * Week Start
+             * Format: date
+             * @description 周起点，恒为周一
+             */
+            week_start: string;
+            /**
+             * Weight Kg
+             * @description 体重（公斤）
+             */
+            weight_kg: number;
+        };
+        /**
+         * CalendarAggregate
+         * @description 月历聚合（SRS FR-4）：整周网格 + 概要 + 已记录日期 + 周体重。
+         */
+        CalendarAggregate: {
+            /**
+             * Logged Dates
+             * @description 存在实际条目的日期集合（升序；不是「存在计划日」的日期）
+             */
+            logged_dates: string[];
+            /**
+             * Month
+             * @description 生效月份 1–12
+             */
+            month: number;
+            /**
+             * Weeks
+             * @description 按周排列的网格，首行不一定是当月 1 日
+             */
+            weeks: components["schemas"]["CalendarWeek"][];
+            /**
+             * Year
+             * @description 生效年份（?month 非法或缺失时已回退为当月）
+             */
+            year: number;
+        };
+        /**
+         * CalendarCell
+         * @description 月历网格的一格。
+         *
+         *     `kind` / `title` 为 `null` 表示该日没有 PlanDay（还没排计划），这与补齐位是两回事：
+         *     补齐位（月初日前 / 月末日后）在 `CalendarWeek.cells` 里直接是 `null`，不是空格子。
+         */
+        CalendarCell: {
+            /**
+             * Date
+             * Format: date
+             * @description 日期
+             */
+            date: string;
+            /**
+             * Kind
+             * @description 计划日类型
+             */
+            kind?: ("train" | "rest") | null;
+            /**
+             * Title
+             * @description 计划日标题；无标题训练日不显示标签
+             */
+            title?: string | null;
+        };
+        /**
+         * CalendarWeek
+         * @description 月历的一行（一个自然周）：7 格 + 该周体重。
+         */
+        CalendarWeek: {
+            /**
+             * Cells
+             * @description 7 格，周一为第一列；补齐位为 null
+             */
+            cells: (components["schemas"]["CalendarCell"] | null)[];
+            /** @description 该周的体重记录，没填就是 null */
+            metric?: components["schemas"]["BodyMetricOut"] | null;
+            /**
+             * Week Start
+             * Format: date
+             * @description 周起点，该周第一个日期的周一（可能落在上一个月）
+             */
+            week_start: string;
+        };
         /**
          * Credentials
          * @description 注册与登录共用（两端字段与校验完全一致，前端也只消费这一种形状）。
@@ -205,6 +319,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_calendar_calendar_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarAggregate"];
+                };
             };
             /** @description Validation Error */
             422: {

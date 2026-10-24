@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -20,6 +21,10 @@ from app.core.security import BCRYPT_MAX_PASSWORD_BYTES, password_too_long
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 20
 PASSWORD_MIN_LENGTH = 6
+
+# `CalendarCell` 的字段名就叫 `date`，与 `datetime.date` 同名：在类体里 `date: date` 会让注解
+# 指向字段自身，Pydantic 直接报 unevaluable-type-annotation。故契约里的日期统一用此别名。
+IsoDate = date
 
 
 class HealthResponse(BaseModel):
@@ -66,3 +71,43 @@ class UserPublic(BaseModel):
 class TokenResponse(BaseModel):
     token: str = Field(description="JWT，前端存 localStorage 并在后续请求带 Bearer")
     user: UserPublic = Field(description="当前用户")
+
+
+class BodyMetricOut(BaseModel):
+    """周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。"""
+
+    week_start: IsoDate = Field(description="周起点，恒为周一")
+    weight_kg: float = Field(description="体重（公斤）")
+    body_fat_pct: float | None = Field(default=None, description="体脂率（百分比）")
+    note: str | None = Field(default=None, description="备注")
+
+
+class CalendarCell(BaseModel):
+    """月历网格的一格。
+
+    `kind` / `title` 为 `null` 表示该日没有 PlanDay（还没排计划），这与补齐位是两回事：
+    补齐位（月初日前 / 月末日后）在 `CalendarWeek.cells` 里直接是 `null`，不是空格子。
+    """
+
+    date: IsoDate = Field(description="日期")
+    kind: Literal["train", "rest"] | None = Field(default=None, description="计划日类型")
+    title: str | None = Field(default=None, description="计划日标题；无标题训练日不显示标签")
+
+
+class CalendarWeek(BaseModel):
+    """月历的一行（一个自然周）：7 格 + 该周体重。"""
+
+    week_start: IsoDate = Field(description="周起点，该周第一个日期的周一（可能落在上一个月）")
+    cells: list[CalendarCell | None] = Field(description="7 格，周一为第一列；补齐位为 null")
+    metric: BodyMetricOut | None = Field(default=None, description="该周的体重记录，没填就是 null")
+
+
+class CalendarAggregate(BaseModel):
+    """月历聚合（SRS FR-4）：整周网格 + 概要 + 已记录日期 + 周体重。"""
+
+    year: int = Field(description="生效年份（?month 非法或缺失时已回退为当月）")
+    month: int = Field(description="生效月份 1–12")
+    weeks: list[CalendarWeek] = Field(description="按周排列的网格，首行不一定是当月 1 日")
+    logged_dates: list[IsoDate] = Field(
+        description="存在实际条目的日期集合（升序；不是「存在计划日」的日期）"
+    )

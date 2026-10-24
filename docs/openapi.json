@@ -1,6 +1,179 @@
 {
   "components": {
     "schemas": {
+      "BodyMetricOut": {
+        "description": "周体重（SRS FR-10）：月历周行的只读展示；票 15 的写入端点复用同一形状。",
+        "properties": {
+          "body_fat_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "体脂率（百分比）",
+            "title": "Body Fat Pct"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "备注",
+            "title": "Note"
+          },
+          "week_start": {
+            "description": "周起点，恒为周一",
+            "format": "date",
+            "title": "Week Start",
+            "type": "string"
+          },
+          "weight_kg": {
+            "description": "体重（公斤）",
+            "title": "Weight Kg",
+            "type": "number"
+          }
+        },
+        "required": [
+          "week_start",
+          "weight_kg"
+        ],
+        "title": "BodyMetricOut",
+        "type": "object"
+      },
+      "CalendarAggregate": {
+        "description": "月历聚合（SRS FR-4）：整周网格 + 概要 + 已记录日期 + 周体重。",
+        "properties": {
+          "logged_dates": {
+            "description": "存在实际条目的日期集合（升序；不是「存在计划日」的日期）",
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Logged Dates",
+            "type": "array"
+          },
+          "month": {
+            "description": "生效月份 1–12",
+            "title": "Month",
+            "type": "integer"
+          },
+          "weeks": {
+            "description": "按周排列的网格，首行不一定是当月 1 日",
+            "items": {
+              "$ref": "#/components/schemas/CalendarWeek"
+            },
+            "title": "Weeks",
+            "type": "array"
+          },
+          "year": {
+            "description": "生效年份（?month 非法或缺失时已回退为当月）",
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "month",
+          "weeks",
+          "logged_dates"
+        ],
+        "title": "CalendarAggregate",
+        "type": "object"
+      },
+      "CalendarCell": {
+        "description": "月历网格的一格。\n\n`kind` / `title` 为 `null` 表示该日没有 PlanDay（还没排计划），这与补齐位是两回事：\n补齐位（月初日前 / 月末日后）在 `CalendarWeek.cells` 里直接是 `null`，不是空格子。",
+        "properties": {
+          "date": {
+            "description": "日期",
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "train",
+                  "rest"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "计划日类型",
+            "title": "Kind"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "计划日标题；无标题训练日不显示标签",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "title": "CalendarCell",
+        "type": "object"
+      },
+      "CalendarWeek": {
+        "description": "月历的一行（一个自然周）：7 格 + 该周体重。",
+        "properties": {
+          "cells": {
+            "description": "7 格，周一为第一列；补齐位为 null",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CalendarCell"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "metric": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BodyMetricOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "该周的体重记录，没填就是 null"
+          },
+          "week_start": {
+            "description": "周起点，该周第一个日期的周一（可能落在上一个月）",
+            "format": "date",
+            "title": "Week Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week_start",
+          "cells"
+        ],
+        "title": "CalendarWeek",
+        "type": "object"
+      },
       "Credentials": {
         "description": "注册与登录共用（两端字段与校验完全一致，前端也只消费这一种形状）。",
         "properties": {
@@ -130,6 +303,13 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "description": "登录后拿到的 JWT（Bearer）",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -223,6 +403,60 @@
         "summary": "注册并登录",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/calendar": {
+      "get": {
+        "operationId": "get_calendar_calendar_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "月历聚合",
+        "tags": [
+          "calendar"
         ]
       }
     },

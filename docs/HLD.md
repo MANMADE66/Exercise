@@ -139,7 +139,9 @@
 └─ README.md                    # dev / prod 双启动说明
 ```
 
-> **目标树说明（2026-10-24 校准，票 08 更新）**：`services/calendar_service.py`、`days_service.py`、`template_service.py`、四个业务 router（calendar/days/templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/errors.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `services/isolation.py` · `routers/health.py` · `routers/auth.py` · `services/auth_service.py`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07/08）。
+> **目标树说明（2026-10-24 校准，本轮更新到票 10）**：`services/days_service.py`、`template_service.py`、三个业务 router（days/templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/errors.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `services/isolation.py` · `services/auth_service.py` · `services/calendar_service.py`（月历网格 / `parse_month` 回退 / `logged_dates` / 周行与周体重） · `routers/health.py` · `routers/auth.py` · `routers/calendar.py`（`GET /calendar`）· 契约 `CalendarAggregate` / `CalendarCell` / `CalendarWeek` / `BodyMetricOut`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07/08/10）。
+
+> `week_start_for(day) = day - timedelta(days=day.weekday())` 定义在 `services/calendar_service.py`：周行读与票 15 的写入归一用**同一份**算法，不各写一遍。
 
 ### 5.2 数据结构要点
 
