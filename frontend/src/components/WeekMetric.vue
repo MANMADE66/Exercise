@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import { ApiError, saveWeekMetric, type BodyMetricOut } from "../api";
+import { ApiError, errorMessage, saveWeekMetric, type BodyMetricOut } from "../api";
 import { weightText } from "../format";
 
 /**
@@ -54,7 +54,7 @@ async function save(): Promise<void> {
     if (cause instanceof ApiError && cause.status === 422) {
       text.value = savedText.value;
     }
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     saving.value = false;
   }

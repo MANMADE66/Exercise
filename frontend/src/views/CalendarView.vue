@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import { getCalendar, type CalendarAggregate } from "../api";
+import { errorMessage, getCalendar, type CalendarAggregate } from "../api";
 import DayDetail from "../components/DayDetail.vue";
 import MonthGrid from "../components/MonthGrid.vue";
 import { monthKey, shiftMonth, todayIso } from "../format";
@@ -48,7 +48,7 @@ async function load(): Promise<void> {
   } catch (cause) {
     if (seq !== requestSeq) return;
     // api.ts 已把错误体归一为中文消息；这里不判 401（401 由 api.ts 清会话并跳登录）
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     if (seq === requestSeq) loading.value = false;
   }

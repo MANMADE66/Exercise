@@ -60,6 +60,16 @@ export function setOnUnauthorized(handler: () => void): void {
   onUnauthorized = handler;
 }
 
+/**
+ * 组件层的「错误 → 中文消息」唯一出口。
+ *
+ * `request` 已把错误体归一进 `ApiError.message`，所以业务组件只需读这一句；
+ * 非 Error 的抛出（理论上不该有）才 `String()` 兜底 —— 这个三元式原本在 8 处各写一遍。
+ */
+export function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
 /** 错误体归一：字符串 detail 直取；422 为 Pydantic 原生数组，拼成中文分号串。 */
 function extractDetail(payload: unknown): string | null {
   if (typeof payload !== "object" || payload === null || !("detail" in payload)) return null;

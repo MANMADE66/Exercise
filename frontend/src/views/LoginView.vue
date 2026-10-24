@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { login, register } from "../api";
+import { errorMessage, login, register } from "../api";
 import BackendStatus from "../components/BackendStatus.vue";
 import { setSession } from "../stores";
 
@@ -35,7 +35,7 @@ async function submit(): Promise<void> {
     await router.replace({ name: "calendar" });
   } catch (cause) {
     // api.ts 已把错误体归一为中文消息（401 统一文案 / 409 用户名占用 / 422 字段校验）
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     submitting.value = false;
   }

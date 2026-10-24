@@ -5,6 +5,7 @@ import {
   applyTemplate,
   createTemplate,
   deleteTemplate,
+  errorMessage,
   listTemplates,
   type TemplateAggregate,
   type TemplateApplyResult,
@@ -71,7 +72,7 @@ async function load(): Promise<void> {
     }
     loaded.value = true;
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     loading.value = false;
   }
@@ -86,7 +87,7 @@ async function apply(templateId: number): Promise<void> {
   try {
     applyResult.value = await applyTemplate(templateId, { start: startFor(templateId) });
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     applying.delete(templateId);
   }
@@ -103,7 +104,7 @@ async function removeTemplate(templateId: number, templateName: string): Promise
     await deleteTemplate(templateId);
     await load();
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     deleting.delete(templateId);
   }
@@ -137,7 +138,7 @@ async function create(): Promise<void> {
     }
     await load();
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     creating.value = false;
   }

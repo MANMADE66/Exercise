@@ -7,6 +7,7 @@ import {
   ApiError,
   deleteActualItem,
   deletePlanItem,
+  errorMessage,
   getDay,
   movePlanItem,
   prefillActualItems,
@@ -44,14 +45,33 @@ const notePending = ref(false);
 /** 正在删除的实际条目 id（行级锁）。 */
 const rowDeleting = reactive(new Set<number>());
 
-/** 实例对应的日期（决策 20 的守卫基准）。 */
+/**
+ * 实例对应的日期（决策 20 的守卫基准）。视图用 `:key="date"` 保证换天重建实例，所以这里
+ * 正常永远相等；但 spec 决策 20 明确要求「响应到达时若日期已变则丢弃」，故按契约保留为第二道保险。
+ */
 const myDate = props.date;
 
 const plannedItems = computed(() => aggregate.value?.planned_items ?? []);
 const actualItems = computed(() => aggregate.value?.actual_items ?? []);
 
-const form = reactive({ exercise: "", weight: "", sets: "", reps: "" });
-const actualForm = reactive({ exercise: "", weight: "", sets: "", reps: "" });
+/** 计划列与计划外新增共用同一个四字段表单形状（原始文本，解析交服务端）。 */
+interface ItemForm {
+  exercise: string;
+  weight: string;
+  sets: string;
+  reps: string;
+}
+
+function emptyItemForm(): ItemForm {
+  return { exercise: "", weight: "", sets: "", reps: "" };
+}
+
+function resetItemForm(target: ItemForm): void {
+  Object.assign(target, emptyItemForm());
+}
+
+const form = reactive<ItemForm>(emptyItemForm());
+const actualForm = reactive<ItemForm>(emptyItemForm());
 
 // ---------- 实际条目草稿（逐字段 autosave 的本地态） ----------
 
@@ -139,7 +159,7 @@ async function refresh(): Promise<boolean> {
     return true;
   } catch (cause) {
     if (myDate !== props.date) return false;
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
     return false;
   } finally {
     if (myDate === props.date) loading.value = false;
@@ -163,7 +183,7 @@ async function execute(op: () => Promise<DayAggregate>): Promise<DayAggregate | 
       const ok = await refresh();
       if (ok) error.value = "这条已经不存在了";
     } else {
-      error.value = cause instanceof Error ? cause.message : String(cause);
+      error.value = errorMessage(cause);
     }
     return null;
   }
@@ -189,12 +209,7 @@ async function addItem(): Promise<void> {
       reps: form.reps,
     }),
   );
-  if (ok) {
-    form.exercise = "";
-    form.weight = "";
-    form.sets = "";
-    form.reps = "";
-  }
+  if (ok) resetItemForm(form);
 }
 
 function move(itemId: number, direction: PlanItemMove["direction"]): void {
@@ -265,12 +280,7 @@ async function addActual(): Promise<void> {
       reps: actualForm.reps,
     }),
   );
-  if (ok !== null) {
-    actualForm.exercise = "";
-    actualForm.weight = "";
-    actualForm.sets = "";
-    actualForm.reps = "";
-  }
+  if (ok !== null) resetItemForm(actualForm);
   addPending.value = false;
 }
 

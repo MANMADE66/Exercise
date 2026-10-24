@@ -35,10 +35,6 @@ const expandedRowIndex = computed<number>(() => {
     week.cells.some((cell) => cell !== null && cell.date === selected),
   );
 });
-
-function select(date: string): void {
-  emit("select", date);
-}
 </script>
 
 <template>
@@ -68,7 +64,7 @@ function select(date: string): void {
                 'has-log': loggedDates.has(cell.date),
               }"
               :data-date="cell.date"
-              @click="select(cell.date)"
+              @click="emit('select', cell.date)"
             >
               <div class="num">{{ dayOfMonth(cell.date) }}</div>
               <!-- 无标题的训练日不显示标签；休息日固定显示「休息」 -->
