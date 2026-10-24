@@ -1,15 +1,14 @@
 import { reactive } from "vue";
 
+import type { components } from "./api-types";
+
 /**
  * 会话小状态：token/user，localStorage 同步（HLD §5.1/§7、SRS FR-2）。
  * 路由守卫与 api.ts 的 token 注入都从这里读，保证同源。
  */
 
-// TODO(认证票)：/auth/login、/auth/register 进入契约后，把本类型替换为
-// api-types.ts 生成的 user schema（D13：前端类型只从生成物取，不手写后端形状）。
-export interface SessionUser {
-  username: string;
-}
+/** 用户形状直接取生成物（D13：前端类型只从 api-types.ts 取，不手写后端形状）。 */
+export type SessionUser = components["schemas"]["UserPublic"];
 
 const TOKEN_KEY = "training-log.token";
 const USER_KEY = "training-log.user";

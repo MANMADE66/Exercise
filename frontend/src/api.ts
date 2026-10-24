@@ -11,6 +11,9 @@ import { clearSession, session } from "./stores";
  */
 
 export type HealthResponse = components["schemas"]["HealthResponse"];
+export type Credentials = components["schemas"]["Credentials"];
+export type TokenResponse = components["schemas"]["TokenResponse"];
+export type UserPublic = components["schemas"]["UserPublic"];
 
 const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 
@@ -89,4 +92,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("/health");
+}
+
+/** 注册即登录（SRS FR-1.4）：返回 token + user，写会话由调用方负责。 */
+export function register(credentials: Credentials): Promise<TokenResponse> {
+  return request<TokenResponse>("/auth/register", { method: "POST", body: credentials });
+}
+
+/** 登录（SRS FR-2.1）；密码错误统一 401「用户名或密码不对」，由调用方展示。 */
+export function login(credentials: Credentials): Promise<TokenResponse> {
+  return request<TokenResponse>("/auth/login", { method: "POST", body: credentials });
 }

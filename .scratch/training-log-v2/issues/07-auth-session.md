@@ -1,5 +1,6 @@
 Type: task
 Status: ready-for-agent
+Claimed by: pi
 
 ## Question
 

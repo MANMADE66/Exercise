@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import Settings
 from app.core.config import settings as default_settings
 from app.db import create_db_engine, create_session_factory, init_db, load_or_create_secret_key
-from app.routers import health
+from app.routers import auth, health
 
 
 @asynccontextmanager
@@ -47,6 +47,7 @@ def create_app(config: Settings | None = None) -> FastAPI:
         )
 
     application.include_router(health.router)
+    application.include_router(auth.router)
     return application
 
 

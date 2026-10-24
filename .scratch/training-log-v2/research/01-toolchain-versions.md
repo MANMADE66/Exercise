@@ -240,3 +240,21 @@ done
 1. §12.0 命令表：`oxfmt --check frontend/src --exclude=.vue` → **该参数不存在**，改 `oxfmt --check frontend/src '!**/*.vue'`（或 `--ignore-path`）。
 2. §5/§12.0 关于「oxfmt 的 .vue 原生格式化仍在移植中，故仅作用于 .ts/.js」：0.74.0 下 `.vue` **已可格式化**（内置 Prettier，非 native）。保留「仅 .ts/.js」是合法选择（且回退 Prettier 与 oxfmt 输出同源），但理由应从「不支持」改为「不采用尚未 native 化的路径」。
 3. §12.0 工具表：`oxlint frontend/src` 建议改 `oxlint --deny-warnings frontend/src`；并注明 `.vue` 仅 `<script>` 块、无 `no-unused-vars`，因此 `.vue` 的正确性由 `vue-tsc` 承担。另：mutmut 一行在 Windows 上需包一层 WSL 检测。
+
+---
+
+## 9. 附录（票 07）：`httpx` → `httpx2` 实测切换
+
+票 02 遗留问题 3、票 07 的顺带评估项。结论：**已切换并验证**。
+
+- **事实 1（注册表）**：`httpx2==2.16.0`，`requires-python >=3.11`，2026-10-21 上传，仓库 `github.com/pydantic/httpx2`。<https://pypi.org/pypi/httpx2/json>
+- **事实 2（本地源码）**：`starlette/testclient.py` 先 `import httpx2 as httpx`，失败才回退 `import httpx` 并抛
+  `StarletteDeprecationWarning: Using 'httpx' with 'starlette.testclient' is deprecated; install 'httpx2' instead.`
+  → 装 `httpx2` 即消警，`httpx` 可以移除。
+- **实测（2026-10-24，本机）**：`pyproject.toml` dev 组把 `httpx==0.28.1` 换成 `httpx2==2.16.0` → `uv lock` →
+  `uv sync --frozen` → `pytest` = **59 passed，0 warning**（此前 5 warnings：1 条 Starlette 弃用 + 4 条测试自造的短密钥告警，
+  后者已改用 ≥32 字节测试密钥）。`uv.lock` 变化：移除 `httpx 0.28.1`，新增 `httpx2 2.16.0` / `httpcore2 2.16.0` /
+  `httpx2-jsfetch 1.0` / `truststore 0.10.5`（均为 dev 组，不进运行时）。
+- **未核实项**：`httpx2` 是 2026-10 才出现的下一代线（major=2），本机只覆盖 TestClient 的同步用法；
+  `httpx2` 对异步客户端 API 的破坏性变更未验证（本项目没有直接用 httpx 跑异步，D10 前端无测试套件）。
+  锁精确版本 + verify 全绿是当前的保险；若后续某版本 TestClient 行为变化，回退路径是 `httpx==0.28.1`（弃用警告不影响结果）。

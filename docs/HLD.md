@@ -137,7 +137,7 @@
 └─ README.md                    # dev / prod 双启动说明
 ```
 
-> **目标树说明（2026-10-24 校准）**：`core/security.py`、`core/deps.py`、`services/*`、五个业务 router 与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随对应执行票创建（自 `.scratch/training-log-v2/issues/07` 起）。已落地：`main.py` · `db.py` · `core/config.py` · `models.py` · `schemas.py` · `parsing.py` · `routers/health.py`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue`。
+> **目标树说明（2026-10-24 校准，票 07 更新）**：`services/calendar_service.py`、`days_service.py`、`template_service.py`、四个业务 router（calendar/days/templates/metrics）与四个业务组件（MonthGrid · DayDetail · WeekMetric · TopBar）**尚未落地**，随后续执行票创建。已落地：`main.py` · `db.py` · `core/config.py` · `core/security.py` · `core/deps.py` · `models.py` · `schemas.py` · `parsing.py` · `routers/health.py` · `routers/auth.py` · `services/auth_service.py`，前端三路由 + `api.ts` / `stores.ts` / `api-types.ts` / `components/BackendStatus.vue` / 已接入登录注册的 `LoginView.vue`（票 07）。
 
 ### 5.2 数据结构要点
 
@@ -296,7 +296,7 @@ SECRET：首启随机生成写入 backend/data/secret.key（重启不失效）�
 | fastapi / uvicorn[standard] | `0.161.1` / `0.54.0` |
 | sqlalchemy / pydantic | `2.1.6` / `2.14.1` |
 | bcrypt / pyjwt | `5.0.0` / `2.15.1` |
-| pytest / httpx（TestClient） | `9.1.1` / `0.28.1` |
+| pytest / httpx2（TestClient） | `9.1.1` / `2.16.0` |
 | ruff / mypy / mutmut | `0.17.2` / `2.4.0` / `3.8.0` |
 
 | 前端（package.json） | 锁定版 | 说明 |
