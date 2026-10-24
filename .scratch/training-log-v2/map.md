@@ -6,7 +6,7 @@
 
 ## 完成情况（2026-10-24）
 
-**票 01–11 全部闭环**（每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
+**票 01–12 全部闭环**（每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
 
 | 票 | 事项 | 落地 |
 |---|---|---|
@@ -21,22 +21,23 @@
 | 09 | 日聚合读（`GET /days/{iso}` + `DayAggregate` + `aggregate_day`） | `2be4f8b` |
 | 10 | 月历聚合（`GET /calendar` + `CalendarAggregate`） | `731e732` |
 | 11 | 计划条目增删移（FR-6 三端点 + 并发 get-or-create 回滚重查） | `3999ad0` |
+| 12 | 实际完成记录四端点（FR-7 prefill / PATCH 三态 / 计划外新增 / 删除） | `6e731b9` |
 
 ## 前沿（2026-10-24 切票，业务域）
 
-雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 12 · 13 · 14 · 15**（票 09 `2be4f8b`、票 10 `731e732`、票 11 `3999ad0` 已闭环）：
+雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 13 · 14 · 15**（票 09 `2be4f8b`、票 10 `731e732`、票 11 `3999ad0`、票 12 `6e731b9` 已闭环）：
 
 | 票 | 事项 | 阻塞 | 可动 |
 |---|---|---|---|
 | 09 | [日聚合读（`GET /days/{iso}` + `DayAggregate`）](issues/09-day-aggregate.md) | — | ✅ 已落地 `2be4f8b` |
 | 10 | [月历聚合（`GET /calendar`）](issues/10-calendar-aggregate.md) | — | ✅ 已落地 `731e732` |
 | 11 | [计划条目增删移（FR-6）](issues/11-plan-items.md) | 09 ✅ | ✅ 已落地 `3999ad0` |
-| 12 | [实际记录与 prefill（FR-7）](issues/12-actual-items.md) | 09 ✅ | ✅ 前沿 |
+| 12 | [实际记录与 prefill（FR-7）](issues/12-actual-items.md) | 09 ✅ | ✅ 已落地 `6e731b9` |
 | 13 | [感受笔记（FR-8）](issues/13-day-note.md) | 09 ✅ | ✅ 前沿 |
 | 14 | [循环模板（FR-9）](issues/14-templates.md) | 09 ✅ | ✅ 前沿 |
 | 15 | [周体重（FR-10）](issues/15-week-metrics.md) | — | ✅ 前沿 |
 
-切票理由（保留原文）：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。**现在根已落地**：11/12/13 都会改 `services/days_service.py` 与 `routers/days.py`，同一文件不宜多会话同时开工，按 11 → 12 → 13 顺序（或不同会话各占一票并错开提交）更稳；14 只碰 `template_service.py`，可并行。**11 已闭环**，下一个动 `days_service.py` 的是 12（prefill + actual item），13 排在其后。
+切票理由（保留原文）：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。**现在根已落地**：11/12/13 都会改 `services/days_service.py` 与 `routers/days.py`，同一文件不宜多会话同时开工，按 11 → 12 → 13 顺序（或不同会话各占一票并错开提交）更稳；14 只碰 `template_service.py`，可并行。**11、12 已闭环**，下一个动 `days_service.py` 的是 13（note），14/15 可并行。
 
 ## Notes
 
@@ -69,11 +70,13 @@
 
 - 票 11（计划条目增删移，已落地 `3999ad0`）：`services/days_service.py` 新增 `add_planned_item` / `delete_planned_item` / `move_planned_item`（全部 `commit()` → `aggregate_day`，D7）+ `get_or_create_exercise` + 内部 `_siblings` / `_renumber` / `_insert_or_refetch`；`routers/days.py` 增第二个 `APIRouter(prefix="/plan-items")`（同模块两个前缀，`main.py` 多 include 一行）。契约 `PlanItemCreate{exercise, weight?, sets?, reps?}`（重量/组数/次数收**原始文本**，标数字类型会把 `60kg` 422 掉、违背 FR-6.4）+ `PlanItemMove{direction: up|down}`。四处裁定：① 空动作名（含纯空白）422 而非 v1 静默 no-op；② 并发 get-or-create 用 **SAVEPOINT**（`with db.begin_nested()`）而非 `db.rollback()` —— 写路径上计划日已 flush 在同一事务里，整事务回滚会连坐；撞唯一键回滚这一条后重查复用，重查仍空则重抛；③ **删除后把剩余 position 重排为 0..n-1**（票面新增裁定）：添加用 `position = len(items)` + 「position 全组连续」两个约束只能靠删完重排同时成立，否则留空洞会让下一条撞号；④ `reps` 照搬 v1 原样落库（空输入存空串而非 NULL），只有 weight/sets 解析失败存 NULL。`reps`/`exercise` 的 v1 语义、move 的「全组重排而非只换两个值」、删除靠 `ON DELETE SET NULL` 保留实际条目均照搬。verify 全绿（**114 例**，原 96 + 本票 18，含两例 monkeypatch 造的并发撞键路径）；mutmut 本机仍不可跑（无 WSL），记账同前。[`issues/11-plan-items.md`](issues/11-plan-items.md)
 
+- 票 12（实际完成记录四端点，已落地 `6e731b9`）：`services/days_service.py` 新增 `prefill_actual_items` / `add_actual_item` / `update_actual_item` / `delete_actual_item`（全 `commit()` → `aggregate_day`，D7）+ 内部 `_copy_missing_actuals` / `_linked_planned_item_ids` / `_actual_siblings` / `_parse_note` / `_ACTUAL_FIELD_UPDATES`；`routers/days.py` 增第三个 `APIRouter(prefix="/actual-items")`（`main.py` 多 include 一行）。契约 `ActualItemCreate`（票 11 `PlanItemCreate` + `note`，抽私有基类 `_ExerciseNamed` 共用「动作名非空」规则，内联进两个 schema 不泄漏组件）+ `ActualItemUpdate`（四字段全 `str | None = None`）。三处裁定：① **PATCH 三态**用 `changes.model_fields_set` 逐字段判（显式 `null` 与缺席的值都是 `None`，`exclude_none`/`exclude_unset` 一把梭会静默丢更新）；且**必须显式写列名** —— 契约字段 `weight` 对应列 `weight_kg`，`setattr(item, field, ...)` 会静默写到非映射属性上不报错不落库（`sets`/`reps`/`note` 恰好同名，只有 weight 失效，三态测试当场抓住），落定形态是 `_ACTUAL_FIELD_UPDATES: dict[str, tuple[列名, 解析器]]` + 一条不变量测试（契约字段集 = 映射键集、列名真实存在于 `__table__.columns`）；② **prefill 当天无 PlanDay 静默 no-op**（不隐式建日 —— 没计划就无可复制），与同文件计划外新增的「隐式建日」是两个语义，各一例钉住；③ **并发撞 `UNIQUE(plan_day_id, planned_item_id)` 整批回滚重算一次**（`with db.begin_nested()` 跑完整复制回合，重算走真实查询只见对方新行，仍撞则抛），monkeypatch 让首次 `_linked_planned_item_ids` 返回空集以确定性走完 `IntegrityError` 分支。照搬 v1：复制**当前计划值**、已练过的行不回灌、position 末位追加（同一请求内多条沿用递增变量）+ 删后重排 `0..n-1`、`reps` 空串存空串而 `note` trim 后为空存 NULL。verify 全绿（**140 例**，原 114 + 本票 26）；mutmut 仍本机不可跑（无 WSL）。[`issues/12-actual-items.md`](issues/12-actual-items.md)
+
 ## Not yet specified
 
 - **前端组件平移**（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view 接上真实请求 + `app.css` 方向 A 令牌迁移）：等 09–15 后端契约齐了再从雾里毕业，否则组件会照着手写形状写（违反 D13）。分几张票也那时定。
 - **prod 静态托管**（D11：`main.py` 挂 `dist` + SPA 兜底、单地址）与**删除旧 `app/`**（含 `tests/`、`run.py`）：都等全链路走通后再切，触发时机现在判不准（删除太早会丢 v1 参考实现）。
-- 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机仍不可验证（无 WSL 发行版）—— 首个真实跑点已到票 09，票 11 又把 position 维护与并发重查堆进了 `days_service.py`，但 `mutmut run` 在 Windows 上仍被上游直接拒绝（缺 `os.fork`），记「本机未验证」，待 WSL/CI 补跑。
+- 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机仍不可验证（无 WSL 发行版）—— 真实跑点已到票 09，11 又把 position 维护与并发重查、12 又把三态逐字段更新与 prefill 幂等重算堆进了 `days_service.py`，但 `mutmut run` 在 Windows 上仍被上游直接拒绝（缺 `os.fork`），记「本机未验证」，待 WSL/CI 补跑。
 - 验收判据（HLD §12.0 已给冒烟主线：登录→月历→展开→autosave→预填→模板 apply→周体重→登出）的**确切步骤与判据**、README 双模式改写、旧实现删除时点 —— 待全链路走通后精确成票。
 
 ## Out of scope
