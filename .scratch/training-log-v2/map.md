@@ -6,7 +6,7 @@
 
 ## 完成情况（2026-10-24）
 
-**票 01–08 全部闭环**（每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
+**票 01–10 全部闭环**（每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
 
 | 票 | 事项 | 落地 |
 |---|---|---|
@@ -18,22 +18,24 @@
 | 06 | 前端骨架（三路由） | `517fe3c` |
 | 07 | 认证与会话（bcrypt + JWT + /auth/*） | `c333e4f` |
 | 08 | 归属隔离与 404 归一（`isolation.py` + `core/errors.py` + A/B 工厂） | `3287232` |
+| 09 | 日聚合读（`GET /days/{iso}` + `DayAggregate` + `aggregate_day`） | `2be4f8b` |
+| 10 | 月历聚合（`GET /calendar` + `CalendarAggregate`） | `731e732` |
 
 ## 前沿（2026-10-24 切票，业务域）
 
-雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 09 · 15**（票 10 已闭环 `731e732`），11–14 卡在 09 后面：
+雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 11 · 12 · 13 · 14 · 15**（票 09 `2be4f8b`、票 10 `731e732` 已闭环，11–14 的「Blocked by: 09」已解除）：
 
 | 票 | 事项 | 阻塞 | 可动 |
 |---|---|---|---|
-| 09 | [日聚合读（`GET /days/{iso}` + `DayAggregate`）](issues/09-day-aggregate.md) | — | ✅ 前沿（首张取它） |
+| 09 | [日聚合读（`GET /days/{iso}` + `DayAggregate`）](issues/09-day-aggregate.md) | — | ✅ 已落地 `2be4f8b` |
 | 10 | [月历聚合（`GET /calendar`）](issues/10-calendar-aggregate.md) | — | ✅ 已落地 `731e732` |
-| 11 | [计划条目增删移（FR-6）](issues/11-plan-items.md) | 09 | ⛔ |
-| 12 | [实际记录与 prefill（FR-7）](issues/12-actual-items.md) | 09 | ⛔ |
-| 13 | [感受笔记（FR-8）](issues/13-day-note.md) | 09 | ⛔ |
-| 14 | [循环模板（FR-9）](issues/14-templates.md) | 09 | ⛔ |
+| 11 | [计划条目增删移（FR-6）](issues/11-plan-items.md) | 09 ✅ | ✅ 前沿 |
+| 12 | [实际记录与 prefill（FR-7）](issues/12-actual-items.md) | 09 ✅ | ✅ 前沿 |
+| 13 | [感受笔记（FR-8）](issues/13-day-note.md) | 09 ✅ | ✅ 前沿 |
+| 14 | [循环模板（FR-9）](issues/14-templates.md) | 09 ✅ | ✅ 前沿 |
 | 15 | [周体重（FR-10）](issues/15-week-metrics.md) | — | ✅ 前沿 |
 
-切票理由：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。
+切票理由（保留原文）：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。**现在根已落地**：11/12/13 都会改 `services/days_service.py` 与 `routers/days.py`，同一文件不宜多会话同时开工，按 11 → 12 → 13 顺序（或不同会话各占一票并错开提交）更稳；14 只碰 `template_service.py`，可并行。
 
 ## Notes
 
@@ -41,6 +43,7 @@
 - 本 effort 覆盖执行（Notes 覆盖默认「只产决策」）：HLD 已裁定几乎全部决策，本图只解决残余的工具链决策（票 01/02/03）与骨架落地（票 04/05/06），此后转交执行线（07 起）。
 - 每会话先读：`docs/agents/issue-tracker.md`、`docs/agents/domain.md`、`AGENTS.md`。
 - 硬不变量（票 03 落进 AGENTS.md）：隔离不越 service 层；parsing 不抛错；api-types.ts 禁手改；verify.sh 是唯一质量入口。
+- **同树并行**：多会话在同一工作树开发时，后开工者先 `git log` / `git status` 确认前一张票已提交，再改共享文件（`schemas.py` / `main.py` / 生成物 `openapi.json` / `api-types.ts`）；新文件（service / router / 测试）可先写。票 09 与票 10 就是这么错开的。
 
 ## Decisions so far
 
@@ -61,11 +64,13 @@
 
 - 票 10（月历聚合，已落地 `731e732`）：`services/calendar_service.py` 与 v1 `app/calendar.py` 同义 —— `month_grid` 整周补齐（`[None]*first.weekday()` 前补 + 补到 7 的整数倍）、`parse_month` 非法/缺省静默回退当月（FR-4.2，与 days 的 400 是两套语义、刻意不收进同一 helper）、`logged_dates` = `PlanDay join ActualItem` + `distinct` 且 **join 也带 `user_id`**（A 的日历不得出现 B 的记录日）。契约 `CalendarAggregate{year, month, weeks[], logged_dates[]}` → `CalendarWeek{week_start, cells[7], metric}` → `CalendarCell{date, kind, title}` + `BodyMetricOut`（票 15 直接复用形状）。三处裁定：① 补齐位是 `null`、空格子不是 —— 当月某天无 PlanDay 时格子仍在、只是 kind/title 为 null，前端据此区分「不在本月」与「没排计划」；② `week_start` 契约收紧为非空（每行必有真实日期；跨月首行落在上一个月，如 2026-07 首行 = 2026-06-29），`week_start_for` 只此一份，票 15 的写入归一复用；③ 响应回生效的 `year`/`month`（回退后前端要基准算 prev/next），`today` 不进契约。踩坑：`CalendarCell.date` 字段名与类型同名会让 Pydantic 报 `unevaluable-type-annotation`，故 `schemas.py` 加模块别名 `IsoDate = date`。verify 全绿（79 例）。[`issues/10-calendar-aggregate.md`](issues/10-calendar-aggregate.md)
 
+- 票 09（日聚合，已落地 `2be4f8b`）：`services/days_service.py` 两件产物 —— `aggregate_day` 只读组装（无 PlanDay 时返回空结构、**GET 不落库**，与 v1 读路径相反）、`get_or_create_plan_day` 只 `flush()` 不 `commit()`（供 11/12/13 复用；默认 `kind="train"`、`title=None`）。契约 `DayAggregate{date, kind, title, planned_items[], actual_items[], note}` + `PlannedItemOut` / `ActualItemOut`（日级写操作复用同一形状，D7），日期字段复用票 10 的 `IsoDate` 别名。六处裁定：① `kind` 用 `Literal["train","rest"]`（前端拿联合类型，脏值宁可炸出来）；② 不加 `has_plan_day` 标志（kind/title 为 null 即信号，同一事实不两处表达）；③ `note` 只读 `day_note` 表，不碰 v1 遗留死列 `plan_day.note`；④ 两个列表各一条 join 查询且 `Exercise.user_id` 也收窄（避免 N+1 与「关系加载绕过 `select_owned`」，脏行对双方不可见）；⑤ `parse_day` 上移 `parsing.py`（不抛错 → 返回 `None`），400 由 router 产出、与 calendar 的静默回退**刻意不共用 helper**；⑥ 并发建 PlanDay 撞 `(user_id, date)` 唯一键的 `IntegrityError` 本票不处理，留票 11 与 `get_or_create_exercise` 一并抽 helper。顺带修掉 SQLAlchemy 2.1 弃用的 `Result.tuples()`（Row 本身即元组），pytest 回到 0 warning。mutmut `source_paths` 按 HLD §12.0 收紧到 `app/parsing.py` + `app/services/days_service.py`；本机实跑被拒（`To run mutmut on Windows, please use the WSL.`），仍记「本机未验证」。verify 全绿（96 例）。[`issues/09-day-aggregate.md`](issues/09-day-aggregate.md)
+
 ## Not yet specified
 
 - **前端组件平移**（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view 接上真实请求 + `app.css` 方向 A 令牌迁移）：等 09–15 后端契约齐了再从雾里毕业，否则组件会照着手写形状写（违反 D13）。分几张票也那时定。
 - **prod 静态托管**（D11：`main.py` 挂 `dist` + SPA 兜底、单地址）与**删除旧 `app/`**（含 `tests/`、`run.py`）：都等全链路走通后再切，触发时机现在判不准（删除太早会丢 v1 参考实现）。
-- 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机不可验证（无 WSL 发行版），**首个真实跑点已挂到票 09**（`days_service` 首写在那一票）。
+- 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机仍不可验证（无 WSL 发行版）—— 首个真实跑点已到票 09：`source_paths` 已收紧、目标模块已存在，但 `mutmut run` 在 Windows 上被上游直接拒绝（缺 `os.fork`），仍记「本机未验证」，待 WSL/CI 补跑。
 - 验收判据（HLD §12.0 已给冒烟主线：登录→月历→展开→autosave→预填→模板 apply→周体重→登出）的**确切步骤与判据**、README 双模式改写、旧实现删除时点 —— 待全链路走通后精确成票。
 
 ## Out of scope
