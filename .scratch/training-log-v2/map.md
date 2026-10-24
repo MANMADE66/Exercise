@@ -19,7 +19,21 @@
 | 07 | 认证与会话（bcrypt + JWT + /auth/*） | `c333e4f` |
 | 08 | 归属隔离与 404 归一（`isolation.py` + `core/errors.py` + A/B 工厂） | `3287232` |
 
-前沿 = **业务域票（calendar / days / templates / metrics）**，地基票 01–08 已全部闭环。
+## 前沿（2026-10-24 切票，业务域）
+
+雾区「执行层里程碑」已毕业为本轮 7 张票。**当前前沿 = 09 · 10 · 15**（无阻塞、无领取），11–14 卡在 09 后面：
+
+| 票 | 事项 | 阻塞 | 可动 |
+|---|---|---|---|
+| 09 | [日聚合读（`GET /days/{iso}` + `DayAggregate`）](issues/09-day-aggregate.md) | — | ✅ 前沿（首张取它） |
+| 10 | [月历聚合（`GET /calendar`）](issues/10-calendar-aggregate.md) | — | ✅ 前沿 |
+| 11 | [计划条目增删移（FR-6）](issues/11-plan-items.md) | 09 | ⛔ |
+| 12 | [实际记录与 prefill（FR-7）](issues/12-actual-items.md) | 09 | ⛔ |
+| 13 | [感受笔记（FR-8）](issues/13-day-note.md) | 09 | ⛔ |
+| 14 | [循环模板（FR-9）](issues/14-templates.md) | 09 | ⛔ |
+| 15 | [周体重（FR-10）](issues/15-week-metrics.md) | — | ✅ 前沿 |
+
+切票理由：09 是**唯一的根** —— FR-6/7/8 的每个写操作都返回整天聚合（D7），契约与 `aggregate_day` 必须先有。10 与 15 只依赖已闭环的隔离层，故一并放进前沿并行。11–14 的业务规则写进票面（v1 语义 + 需裁定的缺口），等 09 闭环即可直接开工。
 
 ## Notes
 
@@ -47,9 +61,10 @@
 
 ## Not yet specified
 
-- 执行层里程碑：07（认证 `c333e4f`）与 08（隔离 `3287232`）已闭环，**前沿 = 业务域**；calendar / days / templates / metrics 四个域、测试矩阵填充、前端组件平移（MonthGrid · DayDetail · WeekMetric · TopBar）、prod 静态托管、验收收尾 —— HLD 已逐项裁定，是执行不是决策。业务域票只调用 `app/services/isolation.py`（`select_owned` / `find_*` / `require_*`），不再手写 `user_id` 过滤条件；404 由 `core/errors.py` 全局处理器统一产出。
-- 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机不可验证（无 WSL 发行版），首个真实跑点押在 `days_service` 落地票。
-- 验收判据：手动冒烟清单的确切步骤、删除旧 `app/` 的触发时机 —— 待全链路走通后精确。
+- **前端组件平移**（MonthGrid · DayDetail · WeekMetric · TopBar + 三个 view 接上真实请求 + `app.css` 方向 A 令牌迁移）：等 09–15 后端契约齐了再从雾里毕业，否则组件会照着手写形状写（违反 D13）。分几张票也那时定。
+- **prod 静态托管**（D11：`main.py` 挂 `dist` + SPA 兜底、单地址）与**删除旧 `app/`**（含 `tests/`、`run.py`）：都等全链路走通后再切，触发时机现在判不准（删除太早会丢 v1 参考实现）。
+- 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机不可验证（无 WSL 发行版），**首个真实跑点已挂到票 09**（`days_service` 首写在那一票）。
+- 验收判据（HLD §12.0 已给冒烟主线：登录→月历→展开→autosave→预填→模板 apply→周体重→登出）的**确切步骤与判据**、README 双模式改写、旧实现删除时点 —— 待全链路走通后精确成票。
 
 ## Out of scope
 
