@@ -1,6 +1,69 @@
 {
   "components": {
     "schemas": {
+      "ActualItemCreate": {
+        "description": "新增计划外实际条目（FR-7.3）：结构与计划条目一致，另可带备注。",
+        "properties": {
+          "exercise": {
+            "description": "动作名，去首尾空白后不能为空",
+            "title": "Exercise",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "该行备注；空串或纯空白视为未填",
+            "title": "Note"
+          },
+          "reps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际次数原文本，自由文本如 8-12",
+            "title": "Reps"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际组数原文本，如 4",
+            "title": "Sets"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际重量原文本，如 60 / 60kg / 62,5",
+            "title": "Weight"
+          }
+        },
+        "required": [
+          "exercise"
+        ],
+        "title": "ActualItemCreate",
+        "type": "object"
+      },
       "ActualItemOut": {
         "description": "实际条目；`planned_item_id` 为 null 表示计划外新增（FR-7.3）。",
         "properties": {
@@ -86,6 +149,61 @@
           "position"
         ],
         "title": "ActualItemOut",
+        "type": "object"
+      },
+      "ActualItemUpdate": {
+        "description": "行内自动保存（FR-7.2）：逐字段更新重量/组数/次数/备注，**三态**语义。\n\n- 字段缺省 → 不动（不因为只改重量就清掉备注）；\n- 显式 `null` → 该字段置空；\n- 空串 → 该字段置 NULL / 空（与原文版一致）。\n\n「缺省」与「显式 null」都是 `None`，值本身分不出来，只能靠 `model_fields_set` 逐字段判\n（service 侧）。契约层把三者都收进来：`str | None` 的 `None` 表示「置空」，缺席表示「不动」。",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "该行备注；缺省不动，null 或空串置空",
+            "title": "Note"
+          },
+          "reps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际次数原文本；缺省不动，null 或空串置空",
+            "title": "Reps"
+          },
+          "sets": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际组数原文本；缺省不动，null 或空串置空",
+            "title": "Sets"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "实际重量原文本；缺省不动，null 或空串置空",
+            "title": "Weight"
+          }
+        },
+        "title": "ActualItemUpdate",
         "type": "object"
       },
       "BodyMetricOut": {
@@ -604,6 +722,116 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/actual-items/{actual_item_id}": {
+      "delete": {
+        "description": "删除实际条目（FR-7.4）：直接删，剩余条目 position 重排连续。",
+        "operationId": "delete_actual_item_actual_items__actual_item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "actual_item_id",
+            "required": true,
+            "schema": {
+              "title": "Actual Item Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "资源不存在"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "删除实际条目",
+        "tags": [
+          "days"
+        ]
+      },
+      "patch": {
+        "description": "逐字段更新（FR-7.2）：字段缺省不动，显式 null / 空串置空。",
+        "operationId": "update_actual_item_actual_items__actual_item_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "actual_item_id",
+            "required": true,
+            "schema": {
+              "title": "Actual Item Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualItemUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "资源不存在"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "行内更新实际条目",
+        "tags": [
+          "days"
+        ]
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "login_auth_login_post",
@@ -792,6 +1020,118 @@
           }
         ],
         "summary": "日聚合",
+        "tags": [
+          "days"
+        ]
+      }
+    },
+    "/days/{iso_date}/actual-items": {
+      "post": {
+        "description": "新增计划外条目（FR-7.3）：`planned_item_id` 为 null，置于当天末位。",
+        "operationId": "create_actual_item_days__iso_date__actual_items_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "iso_date",
+            "required": true,
+            "schema": {
+              "title": "Iso Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualItemCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "日期格式非法，需 YYYY-MM-DD"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "新增计划外实际条目",
+        "tags": [
+          "days"
+        ]
+      }
+    },
+    "/days/{iso_date}/actual/prefill": {
+      "post": {
+        "description": "按计划预填（FR-7.1）：只补尚无实际条目的计划条目，重复调用幂等；当天无计划则 no-op。",
+        "operationId": "prefill_actual_days__iso_date__actual_prefill_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "iso_date",
+            "required": true,
+            "schema": {
+              "title": "Iso Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayAggregate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "日期格式非法，需 YYYY-MM-DD"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "按计划预填实际条目",
         "tags": [
           "days"
         ]

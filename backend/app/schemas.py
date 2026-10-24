@@ -137,28 +137,67 @@ class DayAggregate(BaseModel):
 MoveDirection = Literal["up", "down"]
 
 
-class PlanItemCreate(BaseModel):
-    """添加计划条目（FR-6.1）：动作名自动建入本人动作库，新条目置于当天末位。"""
+class _ExerciseNamed(BaseModel):
+    """计划条目与实际条目共用的动作名规则：去首尾空白后不能为空。
+
+    空动作名 422 而不是静默丢掉这条输入（票 11 裁定，v1 是静默 no-op）；实际条目的计划外新增
+    （FR-7.3）与计划条目同构，故规则只此一份。
+    """
 
     exercise: str = Field(description="动作名，去首尾空白后不能为空")
-    weight: str | None = Field(default=None, description="重量原文本，如 60 / 60kg / 62,5")
-    sets: str | None = Field(default=None, description="组数原文本，如 4")
-    reps: str | None = Field(default=None, description="次数原文本，自由文本如 8-12")
 
     @field_validator("exercise")
     @classmethod
     def _require_exercise(cls, value: str) -> str:
-        """空动作名 422 而不是静默丢掉这条输入（票 11 裁定，v1 是静默 no-op）。"""
         normalized = value.strip()
         if not normalized:
             raise PydanticCustomError("exercise_required", "动作名不能为空")
         return normalized
 
 
+class PlanItemCreate(_ExerciseNamed):
+    """添加计划条目（FR-6.1）：动作名自动建入本人动作库，新条目置于当天末位。"""
+
+    weight: str | None = Field(default=None, description="重量原文本，如 60 / 60kg / 62,5")
+    sets: str | None = Field(default=None, description="组数原文本，如 4")
+    reps: str | None = Field(default=None, description="次数原文本，自由文本如 8-12")
+
+
 class PlanItemMove(BaseModel):
     """上下移动（FR-6.3）：已在边界（首个上移 / 末个下移）时静默成功。"""
 
     direction: MoveDirection = Field(description="up 上移 / down 下移")
+
+
+# ---------- 实际条目写请求（SRS FR-7、HLD §9.1） ----------
+
+
+class ActualItemCreate(_ExerciseNamed):
+    """新增计划外实际条目（FR-7.3）：结构与计划条目一致，另可带备注。"""
+
+    weight: str | None = Field(default=None, description="实际重量原文本，如 60 / 60kg / 62,5")
+    sets: str | None = Field(default=None, description="实际组数原文本，如 4")
+    reps: str | None = Field(default=None, description="实际次数原文本，自由文本如 8-12")
+    note: str | None = Field(default=None, description="该行备注；空串或纯空白视为未填")
+
+
+class ActualItemUpdate(BaseModel):
+    """行内自动保存（FR-7.2）：逐字段更新重量/组数/次数/备注，**三态**语义。
+
+    - 字段缺省 → 不动（不因为只改重量就清掉备注）；
+    - 显式 `null` → 该字段置空；
+    - 空串 → 该字段置 NULL / 空（与原文版一致）。
+
+    「缺省」与「显式 null」都是 `None`，值本身分不出来，只能靠 `model_fields_set` 逐字段判
+    （service 侧）。契约层把三者都收进来：`str | None` 的 `None` 表示「置空」，缺席表示「不动」。
+    """
+
+    weight: str | None = Field(
+        default=None, description="实际重量原文本；缺省不动，null 或空串置空"
+    )
+    sets: str | None = Field(default=None, description="实际组数原文本；缺省不动，null 或空串置空")
+    reps: str | None = Field(default=None, description="实际次数原文本；缺省不动，null 或空串置空")
+    note: str | None = Field(default=None, description="该行备注；缺省不动，null 或空串置空")
 
 
 class BodyMetricOut(BaseModel):

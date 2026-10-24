@@ -4,6 +4,30 @@
  */
 
 export interface paths {
+    "/actual-items/{actual_item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 删除实际条目
+         * @description 删除实际条目（FR-7.4）：直接删，剩余条目 position 重排连续。
+         */
+        delete: operations["delete_actual_item_actual_items__actual_item_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * 行内更新实际条目
+         * @description 逐字段更新（FR-7.2）：字段缺省不动，显式 null / 空串置空。
+         */
+        patch: operations["update_actual_item_actual_items__actual_item_id__patch"];
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -69,6 +93,46 @@ export interface paths {
         get: operations["read_day_days__iso_date__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/days/{iso_date}/actual-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 新增计划外实际条目
+         * @description 新增计划外条目（FR-7.3）：`planned_item_id` 为 null，置于当天末位。
+         */
+        post: operations["create_actual_item_days__iso_date__actual_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/days/{iso_date}/actual/prefill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 按计划预填实际条目
+         * @description 按计划预填（FR-7.1）：只补尚无实际条目的计划条目，重复调用幂等；当天无计划则 no-op。
+         */
+        post: operations["prefill_actual_days__iso_date__actual_prefill_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -157,6 +221,37 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * ActualItemCreate
+         * @description 新增计划外实际条目（FR-7.3）：结构与计划条目一致，另可带备注。
+         */
+        ActualItemCreate: {
+            /**
+             * Exercise
+             * @description 动作名，去首尾空白后不能为空
+             */
+            exercise: string;
+            /**
+             * Note
+             * @description 该行备注；空串或纯空白视为未填
+             */
+            note?: string | null;
+            /**
+             * Reps
+             * @description 实际次数原文本，自由文本如 8-12
+             */
+            reps?: string | null;
+            /**
+             * Sets
+             * @description 实际组数原文本，如 4
+             */
+            sets?: string | null;
+            /**
+             * Weight
+             * @description 实际重量原文本，如 60 / 60kg / 62,5
+             */
+            weight?: string | null;
+        };
+        /**
          * ActualItemOut
          * @description 实际条目；`planned_item_id` 为 null 表示计划外新增（FR-7.3）。
          */
@@ -201,6 +296,39 @@ export interface components {
              * @description 实际重量（kg）
              */
             weight_kg?: number | null;
+        };
+        /**
+         * ActualItemUpdate
+         * @description 行内自动保存（FR-7.2）：逐字段更新重量/组数/次数/备注，**三态**语义。
+         *
+         *     - 字段缺省 → 不动（不因为只改重量就清掉备注）；
+         *     - 显式 `null` → 该字段置空；
+         *     - 空串 → 该字段置 NULL / 空（与原文版一致）。
+         *
+         *     「缺省」与「显式 null」都是 `None`，值本身分不出来，只能靠 `model_fields_set` 逐字段判
+         *     （service 侧）。契约层把三者都收进来：`str | None` 的 `None` 表示「置空」，缺席表示「不动」。
+         */
+        ActualItemUpdate: {
+            /**
+             * Note
+             * @description 该行备注；缺省不动，null 或空串置空
+             */
+            note?: string | null;
+            /**
+             * Reps
+             * @description 实际次数原文本；缺省不动，null 或空串置空
+             */
+            reps?: string | null;
+            /**
+             * Sets
+             * @description 实际组数原文本；缺省不动，null 或空串置空
+             */
+            sets?: string | null;
+            /**
+             * Weight
+             * @description 实际重量原文本；缺省不动，null 或空串置空
+             */
+            weight?: string | null;
         };
         /**
          * BodyMetricOut
@@ -492,6 +620,86 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    delete_actual_item_actual_items__actual_item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                actual_item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 资源不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_actual_item_actual_items__actual_item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                actual_item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActualItemUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 资源不存在 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_auth_login_post: {
         parameters: {
             query?: never;
@@ -604,6 +812,86 @@ export interface operations {
         };
     };
     read_day_days__iso_date__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iso_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 日期格式非法，需 YYYY-MM-DD */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_actual_item_days__iso_date__actual_items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                iso_date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActualItemCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DayAggregate"];
+                };
+            };
+            /** @description 日期格式非法，需 YYYY-MM-DD */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prefill_actual_days__iso_date__actual_prefill_post: {
         parameters: {
             query?: never;
             header?: never;
