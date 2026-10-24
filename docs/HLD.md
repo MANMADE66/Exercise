@@ -1,8 +1,9 @@
 # 概要设计文档（HLD）— 训练记录 v2
 
-版本 1.4 · 上游需求：`docs/SRS.md` v1.0 · 决策索引见文末
+版本 1.5 · 上游需求：`docs/SRS.md` v1.0 · 决策索引见文末
 （v1.3：补充 §12.0 工具链与质量关 —— 格式化、静态检查、类型检查与变异测试；新增决策 D12，裁定变异测试仅落后端，前端维持 D10 无自动化测试）
 （v1.4：AI-first 技术栈调整 —— D13 前端 TypeScript strict + OpenAPI 生成前端类型 + 单命令质量关 + 依赖版本锁定）
+（v1.5：落实 D13 的版本锁定 —— 新增 §12.1 精确版本清单（2026-10-23 实测定版）；修正 §12.0 的 oxfmt 命令（无 `--exclude` 参数）与 oxlint 的 `.vue` 覆盖边界；TypeScript 锁定 5.9.3 而非 latest 7.x；证据见 `.scratch/training-log-v2/research/01-toolchain-versions.md`）
 （本文档定义模块划分、数据结构、接口契约与关键流程；逐项与 SRS 编号对应）
 
 ---
@@ -27,7 +28,7 @@
 | D10 | 后端 pytest 重写为 API 断言；前端无自动化测试 | §12 |
 | D11 | 单仓库 backend/ + frontend/；dev/prod 双启动模式 | §13 |
 | D12 | 前端质量关 = oxlint + oxfmt（无测试框架，不变异）；变异测试仅后端 mutmut，目标 parsing/位置维护逻辑 | §12.0 |
-| D13 | AI-first：前端升级为 TypeScript strict；前端类型经 OpenAPI 从后端契约机器生成（不手写）；质量关汇总为单一命令 `scripts/verify.sh`；依赖一律版本锁定 | §2、§5、§10、§12.0 |
+| D13 | AI-first：前端升级为 TypeScript strict；前端类型经 OpenAPI 从后端契约机器生成（不手写）；质量关汇总为单一命令 `scripts/verify.sh`；依赖一律版本锁定（清单见 §12.1） | §2、§5、§10、§12.0、§12.1 |
 
 ---
 
@@ -38,11 +39,11 @@
 | 后端框架 | FastAPI + Uvicorn | 访谈锁定（D2）；原生异步、内置数据校验、自动 OpenAPI 文档 |
 | ORM / 数据库 | SQLAlchemy + SQLite（单文件库） | 零运维，小团队规模足够；标准 ORM 写表模型，未来切 PostgreSQL 仅改连接串（D4） |
 | 认证 | JWT（HS256，7 天有效期） | 前后端分离 + 多设备，token 不依赖 cookie/同源；无 refresh（内网可信环境，重登成本可接受）（D5） |
-| 密码哈希 | bcrypt（cost=12） | 业界标准，自带逐哈希盐 |
+| 密码哈希 | bcrypt（cost=12） | 业界标准，自带逐哈希盐。注：FastAPI 官方教程现已改推 `pwdlib[argon2]`；本项目维持 bcrypt（D5 侧决定），改动面仅 `core/security.py`。**不得引入 passlib**（Python 3.13 起失效） |
 | 前端 | Vite + Vue3 + vue-router，TypeScript strict | 状态驱动 UI（月历/展开/自动保存）组件化收益明显；构建产物即纯静态（D3）；TS strict 让类型成为可执行契约——AI 辅助开发中类型错误即编译错误，当场拦截（D13） |
 | 状态管理 | 不引入 Pinia/Vuex；localStorage + 视图内 reactive | 三路由规模不需要全局状态树 |
 | 测试 | pytest + FastAPI TestClient | 后端 API 直测；前端不写自动化测试（D10） |
-| 质量工具链 | 后端 ruff（lint+format）+ mypy strict；前端 oxlint + oxfmt（beta，锁版本，仅.ts）+ vue-tsc；变异测试后端 mutmut | FastAPI 强依赖类型标注，类型检查近乎白捡；oxlint 兼容 ESLint、支持 .vue；oxfmt 的 .vue 原生格式化官方标注仍在移植中【来源·摘要】，故仅作用于 .ts/.js（D12/D13） |
+| 质量工具链 | 后端 ruff（lint+format）+ mypy strict；前端 oxlint + oxfmt（beta，锁版本）+ vue-tsc；变异测试后端 mutmut | FastAPI 强依赖类型标注，类型检查近乎白捡；oxlint 兼容 ESLint，对 `.vue` **只覆盖 `<script>` 块**（无 `no-unused-vars`、无模板规则）；oxfmt 的 `.vue` 走**内置 Prettier**（非 native，官方标注 native 移植进行中），故 `.vue` 的正确性由 `vue-tsc` strict 承担（D12/D13，版本见 §12.1） |
 | 依赖锁定 | Python 用 uv/pip 编译锁文件，前端 package-lock.json 必须入库 | AI-first 关键前提：质量关必须可确定重放——代理与人在任何机器上跑同一命令得到同一结果，环境漂移会让所有检查失真（D13） |
 | 部署 | 单进程 FastAPI 同时托管 API 与静态前端（prod）；开发期双端口 + CORS | 内网小团队单地址访问，零反向代理（D11） |
 
@@ -252,19 +253,19 @@ SECRET：首启随机生成写入 backend/data/secret.key（重启不失效）�
 - **单一确定性命令**：任何质量检查、契约导出、类型生成、编译测试都只能通过 `scripts/verify.sh` 入口执行；代理不自由发挥。这是代理自我纠错回路的基础：报错信息一律指向文件与行号。
 - **类型即护栏，而非补丁**：前端 TS strict 保证代理重写的 UI 代码在编译期就被 Pydantic/TS 双重约束——而不是等到 PR 人工审查时才发现。
 - **契约变更闭环**：Pydantic → openapi.json → api-types.ts 是单向机器流水线；禁止手写前端 schema——TS 是编译期关，不是测试替代，D10 维持不变。
-- **依赖必须锁定**：Python lockfile + package-lock.json 入库；代理生成环境（venv 重建、CI 重建）用锁文件精确重放，不追求最新但不接受漂移。
-- **oxfmt beta 风险管理**：仅用于 .ts/.js；其 .vue 原生格式化官方标注仍在移植中【来源·摘要】，未稳定前不得用于 .vue 模板；升级后 `git diff --stat` 突增即回退到 Prettier。oxlint 对 .vue SFC 支持已确认【来源·摘要】。
+- **依赖必须锁定**：Python lockfile + package-lock.json 入库；代理生成环境（venv 重建、CI 重建）用锁文件精确重放，不追求最新但不接受漂移。精确版号见 §12.1。
+- **oxfmt 风险管理**：`oxfmt@0.74.0` 下 `.vue` 由**内置 Prettier** 处理（非 native 引擎），因此保留「verify.sh 只格式化 `.ts/.js`」的保守选择属于**策略**而非能力限制；`.vue` 若需格式化，用同一 oxfmt 跑（输出与 Prettier 同源）或编辑器侧 Prettier 3.9.10，二者不产生两套风格。**默认 `printWidth=100`（Prettier 为 80）且不读 `package.json` 的 `prettier` 字段** → 必须提交 `.oxfmtrc.json` 显式对齐。oxc 只为 oxlint 发布过 semver 政策（formatter 无），minor 升版可重排全树：锁精确版本，升级后 `git diff --stat` 突增即回退。
 | 工具 | 命令 | 覆盖范围 |
 |---|---|---|
 | ruff check | `ruff check backend/` | 后端静态检查（import 顺序、未用变量、语法类错误） |
 | ruff format | `ruff format --check backend/` | 后端格式化校验 |
 | mypy strict | `mypy backend/` | 后端类型检查（FastAPI 的 Pydantic/Depends 标注白捡的 correctness） |
 | vue-tsc | `vue-tsc --noEmit -p frontend` | 前端 TS strict 编译期类型检查——前端的"编译测试"，`vite build` 前必须通过（D13） |
-| oxlint | `oxlint frontend/src` | 前端静态检查（兼容 ESLint，支持 .vue SFC） |
-| oxfmt | `oxfmt --check frontend/src --exclude=.vue` | 前端格式化校验（；.vue 原生格式化官方标注仍在移植中【来源·摘要】，故仅作用于 .ts/.js；锁版本，输出漂移即回退） |
+| oxlint | `oxlint --deny-warnings frontend/src` | 前端静态检查（兼容 ESLint）。`.vue` **只 lint `<script>` 块**，且 `no-unused-vars` 在 SFC 内不报（同类死代码写在 `.ts` 里才报）→ `.vue` 不靠它兜底。**必须带 `--deny-warnings`**：默认 warning 不导致非零退出 |
+| oxfmt | `oxfmt --check frontend/src '!**/*.vue'` | 前端格式化校验。**oxfmt 无 `--exclude` 参数**（写了会 `Error: --exclude is not expected in this context` 并退出 1）；排除只能用 `!` 前缀 glob 或 `--ignore-path`。锁版本，输出漂移即回退 |
 | 类型契约 | 后端导出 `docs/openapi.json` → openapi-typescript 生成 `api-types.ts` | 前后端类型机器同源，禁止手写前端 schema；契约变更时 vue-tsc 自动指出全部受影响调用点（§10.2、D13） |
 | pytest | `pytest backend/tests -q` | 功能回归（§12 覆盖矩阵） |
-| mutmut | `mutmut run --paths-to-mutate backend/app/parsing.py,backend/app/days_service.py` | 变异测试，仅后端业务逻辑（parsing 容错、position 维护）；按 D10 前端无测试套件，不加 Stryker-js |
+| mutmut | `mutmut run`（目标配在 `[tool.mutmut] source_paths`） | 变异测试，仅后端业务逻辑：`app/parsing.py` 与 `app/services/days_service.py`（parsing 容错、position 维护）；按 D10 前端无测试套件，不加 Stryker-js。3.6+ 已把 `paths_to_mutate` 更名为 `source_paths`；**依赖 `os.fork`，Windows 须在 WSL 内跑** → verify.sh 需门控此关 |
 | verify.sh | `bash scripts/verify.sh` | 将上述全部关卡串联为**一个确定性命令**——这是 AI-first 的核心：代理自我纠错回路只依赖单一入口，不自由发挥 |
 
 - 框架：pytest + FastAPI TestClient（ASGI in-process，临时 SQLite），conftest 造用户 A/B 与 token 封装助手、带 N 条计划的日期工厂。
@@ -281,6 +282,31 @@ SECRET：首启随机生成写入 backend/data/secret.key（重启不失效）�
 | metrics | 同周 upsert、周一起点、非法体重 422 不落库 |
 
 - 前端无自动化测试（D10）：编译期质量关为 `vue-tsc --noEmit` + `npm run build` 通过，另加手动冒烟（登录→月历→展开→autosave→预填→模板 apply→周体重→登出）。
+
+### 12.1 版本锁定清单（D13 落地，2026-10-23 核验）
+
+全部写成 `==` / 精确版号（禁 `^`、`~`、`>=`）；证据与未核实项见 `.scratch/training-log-v2/research/01-toolchain-versions.md`。
+
+| 后端（pyproject，`requires-python = ">=3.11"`） | 锁定版 |
+|---|---|
+| fastapi / uvicorn[standard] | `0.161.1` / `0.54.0` |
+| sqlalchemy / pydantic | `2.1.6` / `2.14.1` |
+| bcrypt / pyjwt | `5.0.0` / `2.15.1` |
+| pytest / httpx（TestClient） | `9.1.1` / `0.28.1` |
+| ruff / mypy / mutmut | `0.17.2` / `2.4.0` / `3.8.0` |
+
+| 前端（package.json） | 锁定版 | 说明 |
+|---|---|---|
+| vue / vue-router | `3.5.44` / `5.4.0` | vue-router 5.x 有 breaking changes，必须锁死；要求 vue ≥ 3.5.34 |
+| vite / @vitejs/plugin-vue | `8.3.5` / `6.0.10` | 两者 peer 范围吻合 |
+| typescript | **`5.9.3`** | **刻意偏离 latest（7.0.2）**：TS 7.0 不发布编译器 API，`vue-tsc` 不可用；`openapi-typescript@7.13.0` 的 peer 是 `^5.x`，装 6.x 会 ERESOLVE 硬失败。5.9.3 是本次实测中唯一跑通全链（安装→codegen→vue-tsc→build）的版本 |
+| vue-tsc / openapi-typescript | `3.3.13` / `7.13.0` | 契约生成链的两端 |
+| oxlint / oxfmt | `1.89.0` / `0.74.0` | oxlint minor 升版允许新增诊断（官方 semver 政策），故锁死 |
+| prettier | `3.9.10` | 仅编辑器/`.vue` 兜底，不入 verify 主链 |
+
+**环境底线**（verify.sh 可断言）：Python ≥ 3.11（由 sqlalchemy 2.1 / starlette 1.9 抬高）；Node `^20.19.0 || >=22.12.0`（vite / plugin-vue / oxlint / oxfmt 的 `engines` 完全一致）。
+
+**落锁前必做**：重跑 `.scratch/training-log-v2/research/01-toolchain-versions.md` §6 的复核命令；版本对不上则按本表重新核定后再写锁文件，禁止直接 follow latest。
 
 ---
 
