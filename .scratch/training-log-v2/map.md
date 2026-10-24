@@ -6,7 +6,7 @@
 
 ## 完成情况（2026-10-24）
 
-**票 01–07 全部闭环**（每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
+**票 01–08 全部闭环**（每票均带 `## Answer`，Status 一律保持 `ready-for-agent` —— 按 `docs/agents/issue-tracker.md`，`## Answer` 才是闭环标记，不另设 done 标签）：
 
 | 票 | 事项 | 落地 |
 |---|---|---|
@@ -17,8 +17,9 @@
 | 05 | parsing 移植 | `ecaa7cc` |
 | 06 | 前端骨架（三路由） | `517fe3c` |
 | 07 | 认证与会话（bcrypt + JWT + /auth/*） | `c333e4f` |
+| 08 | 归属隔离与 404 归一（`isolation.py` + `core/errors.py` + A/B 工厂） | `3287232` |
 
-前沿 = **08（归属隔离）**，其余里程碑待 08 落地后现切。
+前沿 = **业务域票（calendar / days / templates / metrics）**，地基票 01–08 已全部闭环。
 
 ## Notes
 
@@ -40,11 +41,13 @@
 - 票 02 复验（2026-10-24，骨架签收）：`bash scripts/verify.sh` 全绿（EXIT=0，32 例）。三处更新：① **oxfmt 收编 `.vue`**——实测 5 个 SFC 零 diff，`'!**/*.vue'` 排除属策略而非能力限制，已撤销，主链只剩 `'!src/api-types.ts'`（生成物），HLD §12.0 同步改写；② **mutmut 本机不可验**——`wsl.exe -l -v` 显示无已安装发行版，而 mutmut 依赖 `os.fork`，门控保留、记账为「本机未验证」，待 `days_service` 落地票在 WSL/CI 补跑；③ **HLD §5.1 校准**——`db.py` 改为 `create_db_engine` / `create_session_factory` / `get_db` 挂 `app.state`，§5.2 补每连接 `PRAGMA foreign_keys=ON`，未落地模块标明「随执行票创建」。同时建立根目录 `CONTEXT.md`（7 术语 + 3 条易混边界，`docs/adr/` 不建——D1–D13 已在 HLD 决策索引，避免双写）。详 [`issues/02-walking-skeleton.md`](issues/02-walking-skeleton.md)
 - 执行层切票（2026-10-24）：只切关键路径两票 —— 07（认证与会话：`security.py` + `deps.py` + `/auth/*` + 契约闭环 + LoginView 解除提交禁用）与 08（归属隔离：service 层 `user_id` 收窄、父链校验、404 同码同文案、A/B 测试助手，`Blocked by: 07`）。其余业务域等地基落地后再切，避免空转。
 
+- 票 08（归属隔离，已落地 `3287232`）：`app/services/isolation.py` 是判断归属的唯一地方 —— `select_owned(model, user_id)` 供列表/聚合收窄；`find_plan_day` / `find_exercise` / `find_body_metric` 按业务键查、不存在回 `None`；`require_planned_item` / `require_actual_item` / `require_template` / `require_template_day` / `require_template_item` 按 id 取且**父链每一层都校验 user_id**（只信子表冗余列会漏掉「A 的条目挂到 B 的模板下」的脏行，测试用 `update().values(user_id=...)` 造这种行验证双方都 404）。404 用 `app/core/errors.py`（`NOT_FOUND_DETAIL` + `NotFoundError` + `create_app` 注册的全局处理器）而非每处 try/except：物理上只有一个文案出口，业务 router 连 catch 都不用写。`require_day_note` 故意不做（DayNote 1:1 挂 PlanDay，入口恒为 `PUT /days/{iso}/note`，按 id 的 helper 是死代码）。conftest 新增 `Actor` + `actor_a`/`actor_b`（直插 users + 签真 JWT，跳过 bcrypt）+ `Factories`（plan_day / planned_item / actual_item / template / template_day / template_item / body_metric / exercise，commit 后 HTTP 可见）。verify 全绿（**71 例**，契约零 diff）。[`issues/08-isolation.md`](issues/08-isolation.md)
+
 - 票 07（认证与会话，已落地 `c333e4f`）：`core/security.py`（bcrypt cost=12；JWT HS256，`sub` 必须是字符串否则 PyJWT 解码即报 InvalidSubjectError；坏/过期/缺声明一律解出 `None`）+ `core/deps.py`（`HTTPBearer(auto_error=False)`：缺 header 默认是 403，必须改成 401；三个失败分支收进 `_unauthorized()`，并导出 `CurrentUser`/`TokenPolicyDep` 给票 08）+ `services/auth_service.py`（票面只列 router，但硬不变量 1 要求写操作与业务判断在 service；并发注册撞唯一键回滚成同一 409 语义）+ `routers/auth.py`（只做 409/401 映射）。契约：`Credentials`（注册/登录共用）/`UserPublic`/`TokenResponse`；422 中文文案必须用 `PydanticCustomError`，`ValueError` 会被加 `Value error, ` 前缀。三处裁定：① 密码 >72 字节（bcrypt 5.x 硬上限，按字节不按字符）拦成 422 而非静默截断；② 登录用同一 `Credentials`，用户名 <3 字符回 422（FR-2.5 只约束「密码错 vs 用户不存在」）；③ 测试用 `add_api_route(include_in_schema=False)` 挂 `/_test/whoami` 探针，五种 401 走真实 HTTP 路径。前端 `api.ts` 增 `register`/`login`、`stores.ts` 的 `SessionUser` 换成 `components["schemas"]["UserPublic"]`、`LoginView` 解除提交禁用。顺带闭环票 02 遗留问题 3：`httpx 0.28.1` → `httpx2 2.16.0`（starlette testclient 优先 import httpx2），pytest 0 warning，HLD §12.1 与 research §9 已同步。[`issues/07-auth-session.md`](issues/07-auth-session.md)
 
 ## Not yet specified
 
-- 执行层里程碑：07（认证）已闭环（`c333e4f`），**前沿 = 08（隔离）**；calendar / days / templates / metrics 四个业务域、测试矩阵填充、前端组件平移（MonthGrid · DayDetail · WeekMetric · TopBar）、prod 静态托管、验收收尾 —— HLD 已逐项裁定，是执行不是决策；待 08 落地后可一次切完。
+- 执行层里程碑：07（认证 `c333e4f`）与 08（隔离 `3287232`）已闭环，**前沿 = 业务域**；calendar / days / templates / metrics 四个域、测试矩阵填充、前端组件平移（MonthGrid · DayDetail · WeekMetric · TopBar）、prod 静态托管、验收收尾 —— HLD 已逐项裁定，是执行不是决策。业务域票只调用 `app/services/isolation.py`（`select_owned` / `find_*` / `require_*`），不再手写 `user_id` 过滤条件；404 由 `core/errors.py` 全局处理器统一产出。
 - 质量关残余细节：oxfmt 对 `.vue` 的收编已于 2026-10-24 落地（实测零 diff），回退阈值仍保留为「升级 oxfmt 后 `git diff --stat` 突增即回退」；mutmut 门控在本机不可验证（无 WSL 发行版），首个真实跑点押在 `days_service` 落地票。
 - 验收判据：手动冒烟清单的确切步骤、删除旧 `app/` 的触发时机 —— 待全链路走通后精确。
 

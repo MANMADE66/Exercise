@@ -14,7 +14,7 @@ FastAPI + Vue3 多用户重写。契约单一来源：`docs/SRS.md`（v1.0）与
 
 ## 硬不变量
 
-1. **隔离在 service 层**：routers 只做参数解析、鉴权依赖与错误码映射；所有查询用当前 `user_id` 收窄，按 id 取资源经父链校验归属，不属于当前用户一律 404（与不存在同码同文案）。写操作与事务在 services。
+1. **隔离在 service 层**：routers 只做参数解析、鉴权依赖与错误码映射；所有查询用当前 `user_id` 收窄，按 id 取资源经父链校验归属，不属于当前用户一律 404（与不存在同码同文案）。写操作与事务在 services。判断只写在 `backend/app/services/isolation.py`（`select_owned` / `find_*` / `require_*`），404 只由 `backend/app/core/errors.py` 产出，不手写过滤条件与文案。
 2. **parsing 不抛错**：无效输入返回 `None` / 空串，绝不向上抛异常。
 3. **`frontend/src/api-types.ts` 禁手改**：契约变更只改 Pydantic 模型，重跑 verify 机器生成；verify 用「重新生成 + `git diff --exit-code`」拦截手改。
 4. **`docs/openapi.json` 是生成物**：由 `scripts/export_openapi.py` 从后端导出，不手写。
