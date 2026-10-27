@@ -35,12 +35,26 @@ FastAPI + Vue3 多用户重写。契约单一来源：`docs/SRS.md`（v1.0）与
 
 ## 本地运行（dev 双端口）
 
+**一键**（推荐）：
+
+```bash
+bash scripts/dev.sh          # 后端 :8000 + 前端 :5173，Ctrl-C 一次停两个
+```
+
+它会���缺依赖（`uv sync --frozen` / `npm ci`）、先查端口、等后端 `/health` 就绪再起前端，日志写到 `.dev-logs/`（已 gitignore）。换端口：`BACKEND_PORT=8010 FRONTEND_PORT=5180 bash scripts/dev.sh`。
+
+手工分开起（调试单个进程时用）：
+
 ```bash
 cd backend && uv run uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev        # http://127.0.0.1:5173
 ```
 
 首次：`cd backend && uv sync`；`cd frontend && npm ci`。
+
+入口文件：后端 `backend/app/main.py`（`create_app()` 工厂 + 模块级 `app`）；前端 `frontend/index.html` → `frontend/src/main.ts`。根目录 `run.py` 是 v1 Flask 启动器，v2 不用它（随旧 `app/` 一起待删）。
+
+开发库与密钥首启自动生成在 `backend/data/`（`app.db` + `secret.key`）；空库起步时先在登录页注册账号。
 
 ## Agent skills
 

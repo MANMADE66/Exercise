@@ -31,3 +31,6 @@ backend/.venv/
 backend/data/
 .mypy_cache/
 .ruff_cache/
+
+# dev 启动脚本的日志（scripts/dev.sh）
+.dev-logs/
