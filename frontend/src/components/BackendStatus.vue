@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 
-import { getHealth, type HealthResponse } from "../api";
+import { errorMessage, getHealth, type HealthResponse } from "../api";
 
 const health = ref<HealthResponse | null>(null);
 const error = ref<string | null>(null);
@@ -14,7 +14,7 @@ async function load(): Promise<void> {
     health.value = await getHealth();
   } catch (cause) {
     health.value = null;
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    error.value = errorMessage(cause);
   } finally {
     loading.value = false;
   }
