@@ -37,9 +37,15 @@ FastAPI + Vue3 多用户重写。契约单一来源：`docs/SRS.md`（v1.0）与
 
 **一键**（推荐）：
 
-```bash
+```bat
+REM Windows：双击或在 CMD/PowerShell 里执行（自动找 Git Bash，绕开 WSL 的 bash.exe）
+dev.cmd
+stop.cmd
+REM 已装 Git Bash / 在 WSL、macOS、Linux 上时：
 bash scripts/dev.sh          # 后端 :8000 + 前端 :5173，Ctrl-C 一次停两个
 ```
+
+`dev.cmd` / `stop.cmd` 是纯 Windows 包装：`dev.cmd` 从 `where git` 反推 Git 自带的 `bash.exe` 再调 `scripts/dev.sh`；`stop.cmd` 用 `netstat` + `taskkill /T /F` 按端口 8000/5173 收进程树，不依赖 bash。**注意**：CMD/PowerShell 里直接敲 `bash` 会命中 `C:\Windows\System32ash.exe`（WSL 启动器），没装 WSL 时报「没有已安装的分发」——别用它。
 
 它会���缺依赖（`uv sync --frozen` / `npm ci`）、先查端口、等后端 `/health` 就绪再起前端，日志写到 `.dev-logs/`（已 gitignore）。换端口：`BACKEND_PORT=8010 FRONTEND_PORT=5180 bash scripts/dev.sh`。
 
